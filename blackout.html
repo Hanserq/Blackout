@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blackout  — PNG Encryptor (Cover Image)</title>
+<style>
+  :root { --bg:#0b0b0e; --fg:#eaeaf2; --muted:#a9acc2; --accent:#7aa2ff; --card:#13141a; --ok:#37d399; --err:#ff6b6b; }
+  *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{max-width:1020px;margin:32px auto;padding:0 16px}
+  h1{margin:0 0 8px} .sub{color:var(--muted);margin:0 0 18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid #1d1f28;border-radius:16px;padding:16px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
+  input,select,button{font:inherit} input[type="text"],input[type="password"],select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #232536;background:#0f1118;color:var(--fg)}
+  button{background:var(--accent);color:#09101a;border:0;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
+  .secondary{background:#202433;color:var(--fg)}
+  .drop{border:1.5px dashed #2b2f44;border-radius:14px;padding:18px;text-align:center;color:var(--muted)}
+  .log{white-space:pre-wrap;font-size:13px;line-height:1.45;background:#0d0f16;border-radius:12px;padding:10px;border:1px solid #1f2232;min-height:54px}
+  .ok{color:var(--ok)} .err{color:var(--err)} .hint{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Blackout v2</h1>
+  <p class="sub">Encrypt any file into a PNG ( NEW optionally using a cover image) and decrypt it back — fully offline.</p>
+
+  <div class="grid">
+    <section class="card">
+      <h3>Encrypt → PNG</h3>
+      <div class="drop">Drop file here or choose…<br><br><input id="enc-file" type="file"></div>
+
+      <div class="row3">
+        <div>
+          <label>Passphrase</label>
+          <input id="enc-pass" type="password" placeholder="Strong passphrase">
+        </div>
+        <div>
+          <label>KDF</label>
+          <select id="kdf-select">
+            <option value="pbkdf2_std" selected>PBKDF2 — Standard</option>
+            <option value="pbkdf2_strong">PBKDF2 — Strong</option>
+          </select>
+        </div>
+        <div>
+          <label>Output PNG name </label>
+          <input id="enc-png-name" type="text" placeholder="e.g., blackout_1234">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Stored filename (restored on decrypt)</label>
+          <input id="enc-stored-name" type="text" placeholder="e.g., secret.pdf">
+        </div>
+        <div>
+          <label>Cover image (optional)</label>
+          <input id="enc-cover" type="file" accept="image/png,image/jpeg,image/webp">
+          <div class="hint">If set, the output looks like this image (still saved as PNG).</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="btn-enc">Encrypt</button>
+        <button id="btn-clear-enc" class="secondary">Clear</button>
+      </div>
+      <div id="enc-log" class="log" style="margin-top:10px">Ready.</div>
+    </section>
+
+    <section class="card">
+      <h3>Decrypt ← PNG</h3>
+      <div class="drop">Drop PNG here or choose…<br><br><input id="dec-file" type="file" accept="image/png"></div>
+      <label>Passphrase</label>
+      <input id="dec-pass" type="password" placeholder="Your passphrase">
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="btn-dec">Decrypt</button>
+        <button id="btn-clear-dec" class="secondary">Clear</button>
+      </div>
+      <div id="dec-log" class="log" style="margin-top:10px">Ready.</div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const TE = new TextEncoder(), TD = new TextDecoder();
+function log(el, msg, cls=''){ el.className = 'log ' + (cls||''); el.textContent = msg; }
+function concatBytes(...arrs){ let len=arrs.reduce((a,b)=>a+b.length,0),out=new Uint8Array(len),off=0; for(const a of arrs){ out.set(a,off); off+=a.length; } return out; }
+function be64(n){ const out=new Uint8Array(8); for(let i=7;i>=0;i--){ out[i]=Number(n&0xffn); n>>=8n; } return out; }
+function readBE64(u8,off){ let n=0n; for(let i=0;i<8;i++) n=(n<<8n)|BigInt(u8[off+i]); return n; }
+function randomBytes(n){ const out=new Uint8Array(n); let o=0; while(o<n){ const len=Math.min(n-o,65536); const chunk=new Uint8Array(len); crypto.getRandomValues(chunk); out.set(chunk,o); o+=len; } return out; }
+function safeFilename(name){ name=(name||'').normalize ? name.normalize('NFC') : (name||''); name=name.replace(/[\\/:*?"<>|]/g,'_').replace(/[\u0000-\u001F\u007F-\u009F]/g,'_').trim(); if(!name) name='file'; if(name.length>200) name=name.slice(0,200); return name; }
+function splitNameExt(name){ const i=(name||'').lastIndexOf('.'); return (i>0 && i<name.length-1)?{base:name.slice(0,i),ext:name.slice(i)}:{base:name||'file',ext:''}; }
+function sanitizeExt(ext){ return (/^\.[A-Za-z0-9]{1,10}$/).test(ext||'') ? ext : ''; }
+
+/* ---------- KDFs ---------- */
+async function kdf_pbkdf2(pass,salt,iters){
+  const keyMaterial = await crypto.subtle.importKey('raw', TE.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt,iterations:iters}, keyMaterial, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
+}
+async function deriveKey(pass,salt,mode){
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const iters = mode==='pbkdf2_strong' ? (isMobile?400000:1000000) : 250000;
+  return kdf_pbkdf2(pass,salt,iters);
+}
+
+/* ---------- PNG helpers ---------- */
+async function imageFileToPngBytes(file){
+  if (file && file.type === 'image/png') return new Uint8Array(await file.arrayBuffer());
+
+  // decode with createImageBitmap or <img> fallback
+  const bmp = ('createImageBitmap' in window)
+    ? await createImageBitmap(file)
+    : await new Promise((res, rej) => {
+        const img = new Image(); img.onload = ()=>res(img); img.onerror = rej;
+        img.src = URL.createObjectURL(file);
+      });
+
+  const w=bmp.width, h=bmp.height;
+  let canvas; if (typeof OffscreenCanvas !== 'undefined') { canvas = new OffscreenCanvas(w,h); }
+  else { canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h; }
+  const ctx = canvas.getContext('2d'); ctx.drawImage(bmp,0,0);
+
+  const blob = canvas.convertToBlob ? await canvas.convertToBlob({type:'image/png'})
+                                    : await new Promise(r => canvas.toBlob(r,'image/png'));
+  const ab = await blob.arrayBuffer();
+  return new Uint8Array(ab);
+}
+
+async function makeBlackPNG(){
+  const size = 128;
+  let canvas; if (typeof OffscreenCanvas !== 'undefined') { canvas = new OffscreenCanvas(size,size); }
+  else { canvas = document.createElement('canvas'); canvas.width=size; canvas.height=size; }
+  const ctx = canvas.getContext('2d'); ctx.fillStyle='#000'; ctx.fillRect(0,0,size,size);
+  const blob = canvas.convertToBlob ? await canvas.convertToBlob({type:'image/png'})
+                                    : await new Promise(r=>canvas.toBlob(r,'image/png'));
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+/* ---------- core: container ---------- */
+/* Layout: [PNG bytes][marker16][salt16][nonce12][ciphertext...][len_be64][marker16] */
+async function encryptBlob(file, pass, storedName, kdfMode, coverPngBytes){
+  const MAX_BYTES = 100 * 1024 * 1024;
+  if (file.size > MAX_BYTES) throw new Error('File exceeds 100 MB cap.');
+
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
+
+  const pick = (storedName && storedName.trim()) ? storedName.trim() : (file.name || 'file.bin');
+  const parts = splitNameExt(pick);
+  const meta = {
+    filename: safeFilename(parts.base),
+    ext: sanitizeExt(parts.ext) || sanitizeExt(splitNameExt(file.name||'').ext) || '',
+    mime: file.type || 'application/octet-stream',
+    size: fileBytes.length
+  };
+  const metaJson = TE.encode(JSON.stringify(meta));
+  const metaLen  = new Uint8Array(4); new DataView(metaLen.buffer).setUint32(0, metaJson.length, false);
+
+  let plain = concatBytes(metaLen, metaJson, fileBytes);
+  const block = 256*1024, padLen = (block - (plain.length % block)) % block;
+  if (padLen) plain = concatBytes(plain, randomBytes(padLen));
+
+  const salt = randomBytes(16), nonce = randomBytes(12);
+  const key = await deriveKey(pass, salt, kdfMode);
+  const ct  = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv:nonce}, key, plain));
+
+  const marker = randomBytes(16);
+  const body   = concatBytes(marker, salt, nonce, ct);
+  const len    = be64(BigInt(body.length));
+  const trailer= concatBytes(len, marker);
+
+  const png = (coverPngBytes && coverPngBytes.length) ? coverPngBytes : await makeBlackPNG();
+  const out = concatBytes(png, body, trailer);
+  return new Blob([out], {type:'image/png'});
+}
+
+async function decryptPNG(pngFile, pass){
+  const bytes = new Uint8Array(await pngFile.arrayBuffer());
+  if (bytes.length < 24) throw new Error('Too small');
+
+  const len = readBE64(bytes, bytes.length - 24);
+  const bodyEndBig = BigInt(bytes.length - 24);
+  if (len <= 0n || len > bodyEndBig) throw new Error('Invalid container length');
+
+  const bodyStart = Number(bodyEndBig - len), bodyEnd = Number(bodyEndBig);
+  const body = bytes.slice(bodyStart, bodyEnd);
+
+  // marker check
+  const markerFooter = bytes.slice(bytes.length - 16);
+  for (let i=0;i<16;i++) if (body[i] !== markerFooter[i]) throw new Error('Not a Blackout container (marker).');
+
+  const salt  = body.slice(16, 32);
+  const nonce = body.slice(32, 44);
+  const ct    = body.slice(44);
+
+  // try strong then standard
+  for (const mode of ['pbkdf2_strong', 'pbkdf2_std']){
+    try{
+      const key = await deriveKey(pass, salt, mode);
+      const plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:nonce}, key, ct));
+
+      const metaLen = new DataView(plain.buffer, plain.byteOffset, plain.byteLength).getUint32(0, false);
+      const meta = JSON.parse(TD.decode(plain.slice(4, 4+metaLen)));
+      const fileBytes = plain.slice(4+metaLen, 4+metaLen + (meta.size||0));
+
+      let outName = 'restored.bin';
+      if (meta && typeof meta === 'object') {
+        if (meta.filename && meta.ext !== undefined) {
+          outName = safeFilename(meta.filename) + (sanitizeExt(meta.ext) || '');
+        } else if (meta.filename) {
+          outName = safeFilename(meta.filename);
+        }
+      }
+      return { meta, fileBytes, outName, mime: meta.mime || 'application/octet-stream' };
+    }catch(_){ /* try next */ }
+  }
+  throw new Error('Wrong passphrase or different KDF.');
+}
+
+/* ---------- UI wiring ---------- */
+(function(){
+  const encFile=$('enc-file'), encPass=$('enc-pass'), encLog=$('enc-log'), btnEnc=$('btn-enc'), btnClearEnc=$('btn-clear-enc');
+  const decFile=$('dec-file'), decPass=$('dec-pass'), decLog=$('dec-log'), btnDec=$('btn-dec'), btnClearDec=$('btn-clear-dec');
+  const encStoredName=$('enc-stored-name'), encPNGName=$('enc-png-name'), kdfSelect=$('kdf-select'), encCover=$('enc-cover');
+
+  btnClearEnc.onclick = ()=>{ encFile.value=''; encPass.value=''; encStoredName.value=''; encPNGName.value=''; encCover.value=''; log(encLog,'Cleared.'); };
+  btnClearDec.onclick = ()=>{ decFile.value=''; decPass.value=''; log(decLog,'Cleared.'); };
+
+  btnEnc.onclick = async ()=>{
+    const f=encFile.files[0]; const p=encPass.value; const mode=kdfSelect.value;
+    if(!f) return log(encLog,'Pick a file.','err');
+    if(!p || p.length<6) return log(encLog,'Use a stronger passphrase (6+).','err');
+    btnEnc.disabled=true; log(encLog,'Encrypting…');
+
+    try{
+      let coverBytes=null;
+      if (encCover.files[0]) {
+        log(encLog,'Encrypting…\nPreparing cover image…');
+        coverBytes = await imageFileToPngBytes(encCover.files[0]);
+      }
+      const blob = await encryptBlob(f, p, encStoredName.value, mode, coverBytes);
+      const a=document.createElement('a'); const stem=(encPNGName.value.trim()||safeFilename(splitNameExt(encStoredName.value||f.name||'file').base)+'_blackout');
+      a.href=URL.createObjectURL(blob); a.download=stem+'.png'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),8000);
+      log(encLog,'Done → '+a.download,'ok');
+    }catch(e){ log(encLog, e && e.message ? e.message : String(e), 'err'); }
+    finally{ btnEnc.disabled=false; }
+  };
+
+  btnDec.onclick = async ()=>{
+    const f=decFile.files[0]; const p=decPass.value;
+    if(!f) return log(decLog,'Pick a PNG.','err');
+    if(!p) return log(decLog,'Enter passphrase.','err');
+    btnDec.disabled=true; log(decLog,'Decrypting…');
+    try{
+      const {meta,fileBytes,outName,mime} = await decryptPNG(f,p);
+      const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fileBytes],{type:mime})); a.download=outName; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),8000);
+      log(decLog,`Recovered “${a.download}” (${meta.size} bytes).`,'ok');
+    }catch(e){ log(decLog, e && e.message ? e.message : String(e), 'err'); }
+    finally{ btnDec.disabled=false; }
+  };
+})();
+</script>
+</body>
+</html>
+
