@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Blackout • Lock Gate</title>
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.webmanifest" />
+
+  <script>
+    (function () {
+      const LS_KEY = 'blackout.lock.hash';
+      const SESSION_KEY = 'blackout.unlockedAt';
+      const hasLock = !!localStorage.getItem(LS_KEY);
+      const ts = Number(sessionStorage.getItem(SESSION_KEY) || 0);
+      const MAX_AGE = 30 * 60 * 1000; // 30 minutes
+
+      // Case 1: A lock is set but no unlocked session → bounce
+      if (hasLock && !ts) {
+        location.replace('./index.html');
+        return;
+      }
+
+      // Case 2: Session exists but is too old → expire + bounce
+      if (ts && Date.now() - ts > MAX_AGE) {
+        sessionStorage.removeItem(SESSION_KEY);
+        location.replace('./index.html');
+        return;
+      }
+    })();
+  </script>
+
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:#0b0b0c;color:#e7e7ea;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+    .hidden{display:none!important}
+    .overlay{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.65);backdrop-filter:saturate(110%) blur(6px);z-index:9999}
+    .lock-card{width:min(560px,92vw);background:#18181b;border:1px solid rgba(255,255,255,.06);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,.45);padding:22px}
+    .lock-title{font-weight:800;font-size:clamp(20px,3vw,28px);letter-spacing:-.02em;margin:4px 2px 2px}
+    .lock-sub{opacity:.85;margin:0 2px 16px;font-size:14px}
+    .pin-form{display:grid;gap:14px}
+    .pin-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%}
+    .pin{appearance:none;width:100%;height:clamp(54px,9.5vw,64px);background:#111113;border:2px solid rgba(255,255,255,.08);border-radius:16px;color:#f5f5f6;text-align:center;font-size:clamp(24px,5.5vw,28px);line-height:1;letter-spacing:.2em;padding:0;outline:none;transition:border-color .15s,box-shadow .15s}
+    .pin:focus{border-color:#d946ef;box-shadow:0 0 0 3px rgba(217,70,239,.18)}
+    .text{width:100%;height:52px;background:#111113;border:2px solid rgba(255,255,255,.08);border-radius:16px;color:#f5f5f6;font-size:16px;padding:0 14px;outline:none}
+    .text:focus{border-color:#d946ef;box-shadow:0 0 0 3px rgba(217,70,239,.18)}
+    .btn{height:52px;border:0;border-radius:16px;cursor:pointer;color:#e7e7ea;background:#232326;font-weight:600;font-size:16px;width:100%}
+    .btn.danger{background:#3a1f23}
+    .first-time{display:grid;gap:12px;margin-top:6px}
+    .muted{font-size:12px;opacity:.7;text-align:center}
+  </style>
+</head>
+<body>
+  <div id="lockOverlay" class="overlay hidden" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="lock-card">
+      <div class="lock-title">App Locked</div>
+      <div id="lockSub" class="lock-sub">Enter your 4-digit passcode</div>
+
+      <form id="unlockForm" class="pin-form" autocomplete="one-time-code" novalidate>
+        <div class="pin-row" id="pinRow">
+          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="pin" aria-label="Digit 1">
+          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="pin" aria-label="Digit 2">
+          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="pin" aria-label="Digit 3">
+          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="pin" aria-label="Digit 4">
+        </div>
+        <button type="submit" class="btn">Unlock</button>
+        <p id="status" class="muted" role="status" aria-live="polite"></p>
+      </form>
+
+      <div id="firstTime" class="first-time hidden">
+        <p class="muted">No passcode found. Create one to continue.</p>
+        <form id="setupForm" class="first-time" autocomplete="off" novalidate>
+          <input id="newPin"  type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="text" placeholder="New 4-digit PIN">
+          <input id="newPin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="text" placeholder="Confirm PIN">
+          <button type="submit" class="btn">Set Passcode</button>
+        </form>
+        <button id="resetLock" class="btn danger">Reset Lock (clear)</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Lock logic (redirect mode) =====
+    const MODE='redirect';
+    const MAIN_URL='blackoutv1.9.2.html';
+    const LS_KEY='blackout.lock.hash';
+    const SALT='blackout-lock-v1';
+
+    (function enhancePinUX(){
+      const pins=[...document.querySelectorAll('#unlockForm .pin')];
+      const toDigit=v=>(v||'').replace(/\D/g,'').slice(0,1);
+      requestAnimationFrame(()=>pins[0]?.focus({preventScroll:true}));
+      pins.forEach(inp=>{
+        inp.addEventListener('paste',e=>{
+          const text=(e.clipboardData||window.clipboardData)?.getData('text')||'';
+          const d=text.replace(/\D/g,'').slice(0,4).split('');
+          if(!d.length) return;
+          e.preventDefault(); pins.forEach((p,i)=>p.value=d[i]||'');
+          (d.length>=4?pins[3]:pins[d.length-1]||pins[0]).focus();
+          if(pins.every(p=>p.value)) document.getElementById('unlockForm').requestSubmit();
+        });
+      });
+      pins.forEach(p=>p.addEventListener('blur',()=>{ p.value=toDigit(p.value); }));
+    })();
+
+    (async () => {
+      const overlay=document.getElementById('lockOverlay');
+      const lockSub=document.getElementById('lockSub');
+      const pins=[...document.querySelectorAll('#unlockForm .pin')];
+      const unlockForm=document.getElementById('unlockForm');
+      const firstTime=document.getElementById('firstTime');
+      const setupForm=document.getElementById('setupForm');
+      const newPin=document.getElementById('newPin');
+      const newPin2=document.getElementById('newPin2');
+      const resetLock=document.getElementById('resetLock');
+      const btnLock=document.getElementById('btnLock');
+      const statusEl=document.getElementById('status');
+
+      const getHash=()=>localStorage.getItem(LS_KEY);
+      const setHash=h=>localStorage.setItem(LS_KEY,h);
+      const sha256=async s=>{
+        const dig=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(SALT+s));
+        return [...new Uint8Array(dig)].map(b=>b.toString(16).padStart(2,'0')).join('');
+      };
+      const show=el=>el.classList.remove('hidden');
+      const hide=el=>el.classList.add('hidden');
+
+      function showOverlay(first=false){
+        overlay.hidden=false; overlay.setAttribute('aria-hidden','false'); show(overlay);
+        if(first){ lockSub.textContent='Create a new passcode to continue'; show(firstTime); newPin.focus(); }
+        else     { lockSub.textContent='Enter your 4-digit passcode';        hide(firstTime); pins[0].focus(); }
+        statusEl.textContent='';
+      }
+      function unlockUI(){
+        if(MODE==='redirect'){ window.location.replace(MAIN_URL); return; }
+      }
+
+      pins.forEach((el,i)=>{
+        el.addEventListener('input',()=>{
+          el.value=el.value.replace(/\D/g,'').slice(0,1);
+          if(el.value && i<pins.length-1) pins[i+1].focus();
+          if(pins.every(p=>p.value)) unlockForm.requestSubmit();
+        },{passive:true});
+        el.addEventListener('keydown',e=>{
+          if(e.key==='Backspace' && !el.value && i>0) pins[i-1].focus();
+        });
+        el.addEventListener('focus',()=>el.select());
+      });
+
+      unlockForm.addEventListener('submit',async e=>{
+        e.preventDefault();
+        const stored=getHash();
+        if(!stored){ showOverlay(true); return; }
+        const pin=pins.map(p=>p.value).join('');
+        if(pin.length!==4){ statusEl.textContent='Please enter all 4 digits.'; return; }
+        const ok=await sha256(pin)===stored;
+         if(ok){ 
+          // mark this tab/session as unlocked
+        sessionStorage.setItem('blackout.unlockedAt', String(Date.now()));
+        statusEl.textContent='Unlocking…'; unlockUI(); }
+        else{ lockSub.textContent='Wrong passcode. Try again.'; pins.forEach(p=>p.value=''); pins[0].focus(); }
+      });
+
+      setupForm.addEventListener('submit',async e=>{
+        e.preventDefault();
+        const p1=(newPin.value||'').replace(/\D/g,'');
+        const p2=(newPin2.value||'').replace(/\D/g,'');
+        if(p1.length!==4 || p2.length!==4) return alert('Enter 4 digits in both fields');
+        if(p1!==p2) return alert('PINs do not match');
+        setHash(await sha256(p1)); pins.forEach(p=>p.value=''); newPin.value=newPin2.value=''; unlockUI();
+      });
+
+      resetLock.addEventListener('click',()=>{
+        if(confirm('Clear saved lock?')){ localStorage.removeItem(LS_KEY); showOverlay(true); }
+      });
+
+      btnLock?.addEventListener('click',()=> showOverlay(!!getHash()===false));
+
+      if(getHash()) showOverlay(false); else showOverlay(true);
+    })();
+
+    // ===== Service Worker registration (merged here) =====
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+
+          
+          setInterval(() => reg.update().catch(()=>{}), 60 * 60 * 1000); // hourly
+
+
+          if (reg.waiting) sendSkipWaiting(reg.waiting);
+
+    
+          reg.addEventListener('updatefound', () => {
+            const sw = reg.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', () => {
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                sendSkipWaiting(sw);
+              }
+            });
+          });
+
+          // When controller changes, reload to use fresh assets
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+          });
+        } catch (err) {
+          console.debug('SW register failed:', err);
+        }
+      });
+
+      function sendSkipWaiting(sw) {
+        // your service-worker.js should listen for this message and call self.skipWaiting()
+        sw.postMessage({ type: 'SKIP_WAITING' });
+      }
+    }
+  </script>
+</body>
+</html>
