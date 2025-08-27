@@ -8,29 +8,6 @@
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
 
-  <script>
-    (function () {
-      const LS_KEY = 'blackout.lock.hash';
-      const SESSION_KEY = 'blackout.unlockedAt';
-      const hasLock = !!localStorage.getItem(LS_KEY);
-      const ts = Number(sessionStorage.getItem(SESSION_KEY) || 0);
-      const MAX_AGE = 30 * 60 * 1000; // 30 minutes
-
-      // Case 1: A lock is set but no unlocked session → bounce
-      if (hasLock && !ts) {
-        location.replace('./index.html');
-        return;
-      }
-
-      // Case 2: Session exists but is too old → expire + bounce
-      if (ts && Date.now() - ts > MAX_AGE) {
-        sessionStorage.removeItem(SESSION_KEY);
-        location.replace('./index.html');
-        return;
-      }
-    })();
-  </script>
-
   <style>
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%}
