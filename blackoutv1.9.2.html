@@ -52,6 +52,21 @@
     .drop{min-height:150px}
     button, input[type="text"],input[type="password"],select{font-size:16px}
   }
+  .upload-area.small {
+  padding: 1rem;
+  min-height: 80px;
+  font-size: 0.9rem;
+}
+
+.upload-area.small .upload-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.upload-area.small .upload-text {
+  font-size: 0.85rem;
+}
+
 </style>
 </head>
 <body>
@@ -89,12 +104,18 @@
           <label>Stored filename (restored on decrypt)</label>
           <input id="enc-stored-name" type="text" placeholder="e.g., secret.pdf">
         </div>
-        <div>
-          <label>Cover image (optional)</label>
-          <input id="enc-cover" type="file" accept="image/png,image/jpeg,image/webp">
-          <div class="hint">If set, the output **looks like** this image (still saved as PNG).</div>
-        </div>
-      </div>
+        <div class="form-group">
+  <label class="form-label">Cover Image (Optional)</label>
+  <div class="upload-area small" onclick="document.getElementById('coverImage').click()">
+    <span class="upload-icon">🖼️</span>
+    <div class="upload-text">Choose cover image</div>
+    <input type="file" id="coverImage" class="file-input" accept="image/*" onchange="handleCoverImage(this)">
+  </div>
+  <small style="color: #666; font-size: 0.8rem;">
+    If set, the output looks like this image (still saved as PNG).
+  </small>
+</div>
+
 
       <div class="actions">
         <button id="btn-enc">Encrypt</button>
