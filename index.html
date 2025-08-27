@@ -159,42 +159,47 @@
     })();
 
     // ===== Service Worker registration (merged here) =====
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
-        try {
-          const reg = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
 
-          
-          setInterval(() => reg.update().catch(()=>{}), 60 * 60 * 1000); // hourly
+    <script>
+      
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
 
+      // Check for updates hourly
+      setInterval(() => {
+        reg.update().catch(() => {});
+      }, 60 * 60 * 1000);
 
-          if (reg.waiting) sendSkipWaiting(reg.waiting);
+      // If a SW is waiting, tell it to skip waiting
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
 
-    
-          reg.addEventListener('updatefound', () => {
-            const sw = reg.installing;
-            if (!sw) return;
-            sw.addEventListener('statechange', () => {
-              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-                sendSkipWaiting(sw);
-              }
-            });
-          });
-
-          // When controller changes, reload to use fresh assets
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            window.location.reload();
-          });
-        } catch (err) {
-          console.debug('SW register failed:', err);
-        }
+      // When a new SW is found and installed, tell it to skip waiting
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            sw.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
       });
 
-      function sendSkipWaiting(sw) {
-        // your service-worker.js should listen for this message and call self.skipWaiting()
-        sw.postMessage({ type: 'SKIP_WAITING' });
-      }
+      // Reload once when the new SW becomes the controller
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!window.__swReloaded) {
+          window.__swReloaded = true;
+          location.reload();
+        }
+      });
+    } catch (err) {
+      console.debug('SW register failed:', err);
     }
-  </script>
+  });
+}
+</script>
 </body>
 </html>
