@@ -1,51 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Blackout  — PNG Encryptor (Cover Image)</title>
-  <script>
-// ---- Guard: only allow if unlocked in last 30 minutes ----
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Blackout — Encrypt / Decrypt</title>
+
+<!-- Guard: only allow if unlocked in last 30 minutes -->
+<script>
 (function(){
-  const MAX_AGE = 30 * 60 * 1000;
+  const MAX_AGE = 30*60*1000;
   const ts = Number(sessionStorage.getItem('blackout.unlockedAt') || 0);
   const hasLock = !!localStorage.getItem('blackout.lock.hash');
-  if (hasLock && (!ts || Date.now() - ts > MAX_AGE)) {
-    location.replace('index.html');
-  }
+  if (hasLock && (!ts || Date.now()-ts > MAX_AGE)) location.replace('index.html');
 })();
 </script>
+
 <style>
-  :root { --bg:#0b0b0e; --fg:#eaeaf2; --muted:#a9acc2; --accent:#7aa2ff; --card:#13141a; --ok:#37d399; --err:#ff6b6b; }
-  *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  .wrap{max-width:1020px;margin:32px auto;padding:0 16px}
-  h1{margin:0 0 8px} .sub{color:var(--muted);margin:0 0 18px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .card{background:var(--card);border:1px solid #1d1f28;border-radius:16px;padding:16px}
+  :root{
+    --bg:#0a0b0f; --fg:#e9ebf2; --muted:#a6acc3; --accent:#8ba7ff; --ok:#35d69b; --err:#ff6b6b;
+    --card:#121420; --stroke:#23263a; --hover:#1a1d2c; --radius:18px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{max-width:1080px;margin:28px auto;padding:0 18px}
+  h1{margin:0 0 8px;font-size:clamp(24px,3.6vw,36px);letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:clamp(13px,1.9vw,15px)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .card{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:16px;box-shadow:0 10px 28px rgba(0,0,0,.35)}
+  .card h3{margin:0 0 10px;font-size:18px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
-  input,select,button{font:inherit} input[type="text"],input[type="password"],select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #232536;background:#0f1118;color:var(--fg)}
-  button{background:var(--accent);color:#09101a;border:0;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
-  .secondary{background:#202433;color:var(--fg)}
-  .drop{border:1.5px dashed #2b2f44;border-radius:14px;padding:18px;text-align:center;color:var(--muted)}
-  .log{white-space:pre-wrap;font-size:13px;line-height:1.45;background:#0d0f16;border-radius:12px;padding:10px;border:1px solid #1f2232;min-height:54px}
+  .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+  label{display:block;font-size:12px;color:var(--muted);margin:6px 0 6px}
+  input,select,button{font:inherit}
+  input[type="text"],input[type="password"],select{
+    width:100%;padding:12px;border-radius:14px;border:1px solid var(--stroke);background:#0e1020;color:var(--fg)
+  }
+  input::placeholder{color:#8086a4}
+  button{background:var(--accent);color:#0b0f1c;border:0;padding:12px 16px;border-radius:14px;font-weight:800;cursor:pointer}
+  button.secondary{background:#222842;color:var(--fg)}
+  button:active{transform:translateY(1px)}
+  .actions{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+  .drop{border:1.5px dashed #2d3350;border-radius:16px;padding:18px;text-align:center;color:var(--muted);min-height:120px;display:grid;place-items:center}
+  .drop.active{outline:2px dashed var(--accent)}
+  .log{white-space:pre-wrap;font-size:13px;line-height:1.45;background:#0d1122;border-radius:14px;padding:10px;border:1px solid #1d2135;min-height:54px}
   .ok{color:var(--ok)} .err{color:var(--err)} .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  :is(input,select,button):focus{outline:none;box-shadow:0 0 0 3px rgba(139,167,255,.25)}
+  /* Mobile: stack sections, single-column forms, larger drop zones */
+  @media (max-width: 900px){
+    .grid{grid-template-columns:1fr}
+    .row,.row3{grid-template-columns:1fr}
+    .drop{min-height:150px}
+    button, input[type="text"],input[type="password"],select{font-size:16px}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Blackout v2</h1>
-  <p class="sub">Encrypt any file into a PNG ( NEW optionally using a cover image) and decrypt it back — fully offline.</p>
+  <p class="sub">Encrypt any file into a PNG (optional cover image) and decrypt it back — fully offline.</p>
 
   <div class="grid">
-    <section class="card">
+    <!-- ENCRYPT -->
+    <section class="card" id="enc-card">
       <h3>Encrypt → PNG</h3>
-      <div class="drop">Drop file here or choose…<br><br><input id="enc-file" type="file"></div>
+      <div class="drop" id="enc-drop"><div><strong id="enc-drop-label">Drop file here</strong><br/>or choose…</div></div>
+      <input id="enc-file" type="file" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
 
       <div class="row3">
         <div>
           <label>Passphrase</label>
-          <input id="enc-pass" type="password" placeholder="Strong passphrase">
+          <input id="enc-pass" type="password" placeholder="Strong passphrase" autocomplete="new-password">
         </div>
         <div>
           <label>KDF</label>
@@ -55,7 +79,7 @@
           </select>
         </div>
         <div>
-          <label>Output PNG name </label>
+          <label>Output PNG name</label>
           <input id="enc-png-name" type="text" placeholder="e.g., blackout_1234">
         </div>
       </div>
@@ -68,23 +92,27 @@
         <div>
           <label>Cover image (optional)</label>
           <input id="enc-cover" type="file" accept="image/png,image/jpeg,image/webp">
-          <div class="hint">If set, the output looks like this image (still saved as PNG).</div>
+          <div class="hint">If set, the output **looks like** this image (still saved as PNG).</div>
         </div>
       </div>
 
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <div class="actions">
         <button id="btn-enc">Encrypt</button>
         <button id="btn-clear-enc" class="secondary">Clear</button>
       </div>
       <div id="enc-log" class="log" style="margin-top:10px">Ready.</div>
     </section>
 
-    <section class="card">
+    <!-- DECRYPT -->
+    <section class="card" id="dec-card">
       <h3>Decrypt ← PNG</h3>
-      <div class="drop">Drop PNG here or choose…<br><br><input id="dec-file" type="file" accept="image/png"></div>
-      <label>Passphrase</label>
-      <input id="dec-pass" type="password" placeholder="Your passphrase">
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <div class="drop" id="dec-drop"><div><strong id="dec-drop-label">Drop PNG here</strong><br/>or choose…</div></div>
+      <input id="dec-file" type="file" accept="image/png" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
+
+      <label style="margin-top:10px">Passphrase</label>
+      <input id="dec-pass" type="password" placeholder="Your passphrase" autocomplete="current-password">
+
+      <div class="actions">
         <button id="btn-dec">Decrypt</button>
         <button id="btn-clear-dec" class="secondary">Clear</button>
       </div>
@@ -94,7 +122,7 @@
 </div>
 
 <script>
-/* ---------- helpers ---------- */
+/* ---------- small helpers ---------- */
 const $ = (id) => document.getElementById(id);
 const TE = new TextEncoder(), TD = new TextDecoder();
 function log(el, msg, cls=''){ el.className = 'log ' + (cls||''); el.textContent = msg; }
@@ -104,7 +132,7 @@ function readBE64(u8,off){ let n=0n; for(let i=0;i<8;i++) n=(n<<8n)|BigInt(u8[of
 function randomBytes(n){ const out=new Uint8Array(n); let o=0; while(o<n){ const len=Math.min(n-o,65536); const chunk=new Uint8Array(len); crypto.getRandomValues(chunk); out.set(chunk,o); o+=len; } return out; }
 function safeFilename(name){ name=(name||'').normalize ? name.normalize('NFC') : (name||''); name=name.replace(/[\\/:*?"<>|]/g,'_').replace(/[\u0000-\u001F\u007F-\u009F]/g,'_').trim(); if(!name) name='file'; if(name.length>200) name=name.slice(0,200); return name; }
 function splitNameExt(name){ const i=(name||'').lastIndexOf('.'); return (i>0 && i<name.length-1)?{base:name.slice(0,i),ext:name.slice(i)}:{base:name||'file',ext:''}; }
-function sanitizeExt(ext){ return (/^\.[A-Za-z0-9]{1,10}$/).test(ext||'') ? ext : ''; }
+function sanitizeExt(ext){ return (/^\\.[A-Za-z0-9]{1,10}$/).test(ext||'') ? ext : ''; }
 
 /* ---------- KDFs ---------- */
 async function kdf_pbkdf2(pass,salt,iters){
@@ -120,30 +148,25 @@ async function deriveKey(pass,salt,mode){
 /* ---------- PNG helpers ---------- */
 async function imageFileToPngBytes(file){
   if (file && file.type === 'image/png') return new Uint8Array(await file.arrayBuffer());
-
-  // decode with createImageBitmap or <img> fallback
   const bmp = ('createImageBitmap' in window)
     ? await createImageBitmap(file)
     : await new Promise((res, rej) => {
         const img = new Image(); img.onload = ()=>res(img); img.onerror = rej;
         img.src = URL.createObjectURL(file);
       });
-
   const w=bmp.width, h=bmp.height;
   let canvas; if (typeof OffscreenCanvas !== 'undefined') { canvas = new OffscreenCanvas(w,h); }
-  else { canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h; }
+  else { canvas = Object.assign(document.createElement('canvas'), {width:w,height:h}); }
   const ctx = canvas.getContext('2d'); ctx.drawImage(bmp,0,0);
-
   const blob = canvas.convertToBlob ? await canvas.convertToBlob({type:'image/png'})
                                     : await new Promise(r => canvas.toBlob(r,'image/png'));
-  const ab = await blob.arrayBuffer();
-  return new Uint8Array(ab);
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
 async function makeBlackPNG(){
   const size = 128;
   let canvas; if (typeof OffscreenCanvas !== 'undefined') { canvas = new OffscreenCanvas(size,size); }
-  else { canvas = document.createElement('canvas'); canvas.width=size; canvas.height=size; }
+  else { canvas = Object.assign(document.createElement('canvas'), {width:size,height:size}); }
   const ctx = canvas.getContext('2d'); ctx.fillStyle='#000'; ctx.fillRect(0,0,size,size);
   const blob = canvas.convertToBlob ? await canvas.convertToBlob({type:'image/png'})
                                     : await new Promise(r=>canvas.toBlob(r,'image/png'));
@@ -155,9 +178,7 @@ async function makeBlackPNG(){
 async function encryptBlob(file, pass, storedName, kdfMode, coverPngBytes){
   const MAX_BYTES = 100 * 1024 * 1024;
   if (file.size > MAX_BYTES) throw new Error('File exceeds 100 MB cap.');
-
   const fileBytes = new Uint8Array(await file.arrayBuffer());
-
   const pick = (storedName && storedName.trim()) ? storedName.trim() : (file.name || 'file.bin');
   const parts = splitNameExt(pick);
   const meta = {
@@ -168,20 +189,16 @@ async function encryptBlob(file, pass, storedName, kdfMode, coverPngBytes){
   };
   const metaJson = TE.encode(JSON.stringify(meta));
   const metaLen  = new Uint8Array(4); new DataView(metaLen.buffer).setUint32(0, metaJson.length, false);
-
   let plain = concatBytes(metaLen, metaJson, fileBytes);
   const block = 256*1024, padLen = (block - (plain.length % block)) % block;
   if (padLen) plain = concatBytes(plain, randomBytes(padLen));
-
   const salt = randomBytes(16), nonce = randomBytes(12);
   const key = await deriveKey(pass, salt, kdfMode);
   const ct  = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv:nonce}, key, plain));
-
   const marker = randomBytes(16);
   const body   = concatBytes(marker, salt, nonce, ct);
   const len    = be64(BigInt(body.length));
   const trailer= concatBytes(len, marker);
-
   const png = (coverPngBytes && coverPngBytes.length) ? coverPngBytes : await makeBlackPNG();
   const out = concatBytes(png, body, trailer);
   return new Blob([out], {type:'image/png'});
@@ -190,32 +207,23 @@ async function encryptBlob(file, pass, storedName, kdfMode, coverPngBytes){
 async function decryptPNG(pngFile, pass){
   const bytes = new Uint8Array(await pngFile.arrayBuffer());
   if (bytes.length < 24) throw new Error('Too small');
-
   const len = readBE64(bytes, bytes.length - 24);
   const bodyEndBig = BigInt(bytes.length - 24);
   if (len <= 0n || len > bodyEndBig) throw new Error('Invalid container length');
-
   const bodyStart = Number(bodyEndBig - len), bodyEnd = Number(bodyEndBig);
   const body = bytes.slice(bodyStart, bodyEnd);
-
-  // marker check
   const markerFooter = bytes.slice(bytes.length - 16);
   for (let i=0;i<16;i++) if (body[i] !== markerFooter[i]) throw new Error('Not a Blackout container (marker).');
-
   const salt  = body.slice(16, 32);
   const nonce = body.slice(32, 44);
   const ct    = body.slice(44);
-
-  // try strong then standard
   for (const mode of ['pbkdf2_strong', 'pbkdf2_std']){
     try{
       const key = await deriveKey(pass, salt, mode);
       const plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:nonce}, key, ct));
-
       const metaLen = new DataView(plain.buffer, plain.byteOffset, plain.byteLength).getUint32(0, false);
       const meta = JSON.parse(TD.decode(plain.slice(4, 4+metaLen)));
       const fileBytes = plain.slice(4+metaLen, 4+metaLen + (meta.size||0));
-
       let outName = 'restored.bin';
       if (meta && typeof meta === 'object') {
         if (meta.filename && meta.ext !== undefined) {
@@ -230,21 +238,48 @@ async function decryptPNG(pngFile, pass){
   throw new Error('Wrong passphrase or different KDF.');
 }
 
-/* ---------- UI wiring ---------- */
+/* ---------- UI wiring + Drag & Drop ---------- */
 (function(){
   const encFile=$('enc-file'), encPass=$('enc-pass'), encLog=$('enc-log'), btnEnc=$('btn-enc'), btnClearEnc=$('btn-clear-enc');
   const decFile=$('dec-file'), decPass=$('dec-pass'), decLog=$('dec-log'), btnDec=$('btn-dec'), btnClearDec=$('btn-clear-dec');
   const encStoredName=$('enc-stored-name'), encPNGName=$('enc-png-name'), kdfSelect=$('kdf-select'), encCover=$('enc-cover');
+  const encDrop=$('enc-drop'), decDrop=$('dec-drop');
+  const encDropLabel=$('enc-drop-label'), decDropLabel=$('dec-drop-label');
 
-  btnClearEnc.onclick = ()=>{ encFile.value=''; encPass.value=''; encStoredName.value=''; encPNGName.value=''; encCover.value=''; log(encLog,'Cleared.'); };
-  btnClearDec.onclick = ()=>{ decFile.value=''; decPass.value=''; log(decLog,'Cleared.'); };
+  // Prevent page navigation on drop
+  ['dragover','drop'].forEach(t=>{
+    addEventListener(t, e=>e.preventDefault(), true);
+    document.addEventListener(t, e=>e.preventDefault(), true);
+  });
+
+  // Click drop zones to open hidden file inputs
+  encDrop.addEventListener('click', ()=> encFile.click());
+  decDrop.addEventListener('click', ()=> decFile.click());
+
+  function wireDrop(zone, input, labelEl, acceptFn){
+    zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('active'); });
+    zone.addEventListener('dragleave', ()=> zone.classList.remove('active'));
+    zone.addEventListener('drop', e=>{
+      e.preventDefault(); zone.classList.remove('active');
+      const files = Array.from(e.dataTransfer.files || []);
+      const picked = acceptFn ? files.find(acceptFn) : files[0];
+      if (!picked) return;
+      const dt = new DataTransfer(); dt.items.add(picked); input.files = dt.files;
+      input.dispatchEvent(new Event('change', {bubbles:true}));
+      if (labelEl) labelEl.textContent = picked.name;
+    });
+  }
+  wireDrop(encDrop, encFile, encDropLabel, () => true);
+  wireDrop(decDrop, decFile, decDropLabel, f => /image\/png$/i.test(f.type));
+
+  btnClearEnc.onclick = ()=>{ encFile.value=''; encPass.value=''; encStoredName.value=''; encPNGName.value=''; encCover.value=''; log(encLog,'Cleared.'); encDropLabel.textContent='Drop file here'; };
+  btnClearDec.onclick = ()=>{ decFile.value=''; decPass.value=''; log(decLog,'Cleared.'); decDropLabel.textContent='Drop PNG here'; };
 
   btnEnc.onclick = async ()=>{
-    const f=encFile.files[0]; const p=encPass.value; const mode=kdfSelect.value;
+    const f=encFile.files[0], p=encPass.value, mode=kdfSelect.value;
     if(!f) return log(encLog,'Pick a file.','err');
     if(!p || p.length<6) return log(encLog,'Use a stronger passphrase (6+).','err');
     btnEnc.disabled=true; log(encLog,'Encrypting…');
-
     try{
       let coverBytes=null;
       if (encCover.files[0]) {
@@ -252,16 +287,16 @@ async function decryptPNG(pngFile, pass){
         coverBytes = await imageFileToPngBytes(encCover.files[0]);
       }
       const blob = await encryptBlob(f, p, encStoredName.value, mode, coverBytes);
-      const a=document.createElement('a'); const stem=(encPNGName.value.trim()||safeFilename(splitNameExt(encStoredName.value||f.name||'file').base)+'_blackout');
-      a.href=URL.createObjectURL(blob); a.download=stem+'.png'; a.click();
+      const stem = (encPNGName.value.trim()||safeFilename(splitNameExt(encStoredName.value||f.name||'file').base)+'_blackout');
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=stem+'.png'; a.click();
       setTimeout(()=>URL.revokeObjectURL(a.href),8000);
       log(encLog,'Done → '+a.download,'ok');
-    }catch(e){ log(encLog, e && e.message ? e.message : String(e), 'err'); }
+    }catch(e){ log(encLog, e?.message || String(e), 'err'); }
     finally{ btnEnc.disabled=false; }
   };
 
   btnDec.onclick = async ()=>{
-    const f=decFile.files[0]; const p=decPass.value;
+    const f=decFile.files[0], p=decPass.value;
     if(!f) return log(decLog,'Pick a PNG.','err');
     if(!p) return log(decLog,'Enter passphrase.','err');
     btnDec.disabled=true; log(decLog,'Decrypting…');
@@ -270,11 +305,10 @@ async function decryptPNG(pngFile, pass){
       const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([fileBytes],{type:mime})); a.download=outName; a.click();
       setTimeout(()=>URL.revokeObjectURL(a.href),8000);
       log(decLog,`Recovered “${a.download}” (${meta.size} bytes).`,'ok');
-    }catch(e){ log(decLog, e && e.message ? e.message : String(e), 'err'); }
+    }catch(e){ log(decLog, e?.message || String(e), 'err'); }
     finally{ btnDec.disabled=false; }
   };
 })();
 </script>
 </body>
 </html>
-
