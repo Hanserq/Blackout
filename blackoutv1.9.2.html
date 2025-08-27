@@ -52,20 +52,21 @@
     .drop{min-height:150px}
     button, input[type="text"],input[type="password"],select{font-size:16px}
   }
-  .upload-area.small {
-  padding: 1rem;
-  min-height: 80px;
-  font-size: 0.9rem;
+/* Accessible hidden input */
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
 }
 
-.upload-area.small .upload-icon {
-  font-size: 1.5rem;
-  margin-bottom: 0.25rem;
+/* Compact dashed pill for cover picker */
+.cover-picker{
+  display:inline-flex; align-items:center; gap:10px;
+  border:1.5px dashed #2d3350; border-radius:12px;
+  padding:10px 12px; background:#0e1020; cursor:pointer; user-select:none;
 }
-
-.upload-area.small .upload-text {
-  font-size: 0.85rem;
-}
+.cover-picker .upload-icon{ font-size:1.25rem }
+.cover-picker .upload-text{ font-size:.9rem; color:var(--muted) }
+.cover-picker.active{ outline:2px dashed var(--accent) }
 
 </style>
 </head>
@@ -104,16 +105,17 @@
           <label>Stored filename (restored on decrypt)</label>
           <input id="enc-stored-name" type="text" placeholder="e.g., secret.pdf">
         </div>
-        <div class="form-group">
+
+        <div>
   <label class="form-label">Cover Image (Optional)</label>
-  <div class="upload-area small" onclick="document.getElementById('coverImage').click()">
-    <span class="upload-icon">🖼️</span>
-    <div class="upload-text">Choose cover image</div>
-    <input type="file" id="coverImage" class="file-input" accept="image/*" onchange="handleCoverImage(this)">
-  </div>
-  <small style="color: #666; font-size: 0.8rem;">
-    If set, the output looks like this image (still saved as PNG).
-  </small>
+
+  <!-- compact cover picker -->
+  <label id="coverPicker" class="cover-picker" for="coverImage" role="button" aria-label="Choose cover image">
+    <span class="upload-text">Choose cover image</span>
+  </label>
+  <input id="coverImage" type="file" accept="image/*" class="sr-only">
+
+  <small class="hint">If set, the output looks like this image (still saved as PNG).</small>
 </div>
 
 
@@ -330,6 +332,52 @@ async function decryptPNG(pngFile, pass){
     finally{ btnDec.disabled=false; }
   };
 })();
+  
+// Cover picker label update + drag & drop (hardened)
+const coverInput  = document.getElementById('coverImage');
+const coverPicker = document.getElementById('coverPicker');
+
+if (coverInput && coverPicker) {
+  const coverText = coverPicker.querySelector('.upload-text');
+
+  coverInput.addEventListener('change', () => {
+    const f = coverInput.files && coverInput.files[0];
+    coverText.textContent = f ? f.name : 'Choose cover image';
+  });
+
+  // prevent default navigation on drag/drop over the control
+  ['dragover','drop'].forEach(ev =>
+    coverPicker.addEventListener(ev, e => e.preventDefault())
+  );
+
+  coverPicker.addEventListener('dragover', () => coverPicker.classList.add('active'));
+  coverPicker.addEventListener('dragleave', () => coverPicker.classList.remove('active'));
+
+  coverPicker.addEventListener('drop', e => {
+    coverPicker.classList.remove('active');
+    const files = e.dataTransfer && e.dataTransfer.files;
+    const f = files && files[0];
+    if (!f) return;
+
+    // Cross-browser way to set input.files
+    let dt;
+    try {
+      dt = new DataTransfer();          // Chrome/Edge/Safari recent
+    } catch {
+      dt = new ClipboardEvent('').clipboardData || null; // Firefox fallback
+    }
+    if (dt) {
+      dt.items.add(f);
+      coverInput.files = dt.files;
+    } else {
+      // Ultimate fallback: just call the change handler with name only
+      coverText.textContent = f.name;
+      return;
+    }
+    coverInput.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
 </script>
 </body>
 </html>
