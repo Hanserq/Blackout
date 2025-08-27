@@ -4,6 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Blackout  — PNG Encryptor (Cover Image)</title>
+  <script>
+// ---- Guard: only allow if unlocked in last 30 minutes ----
+(function(){
+  const MAX_AGE = 30 * 60 * 1000;
+  const ts = Number(sessionStorage.getItem('blackout.unlockedAt') || 0);
+  const hasLock = !!localStorage.getItem('blackout.lock.hash');
+  if (hasLock && (!ts || Date.now() - ts > MAX_AGE)) {
+    location.replace('index.html');
+  }
+})();
+</script>
 <style>
   :root { --bg:#0b0b0e; --fg:#eaeaf2; --muted:#a9acc2; --accent:#7aa2ff; --card:#13141a; --ok:#37d399; --err:#ff6b6b; }
   *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
