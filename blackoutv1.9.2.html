@@ -1,3 +1,4 @@
+<!--- blackoutv1.9.2.html (with Argon2id support) --->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,21 +6,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Blackout — Encrypt / Decrypt</title>
 
+<meta http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval';
+          style-src 'self' 'unsafe-inline';
+          img-src 'self' blob: data:;
+          worker-src 'self' blob:;
+          connect-src 'self';
+          object-src 'none';
+          base-uri 'none';
+          frame-ancestors 'none';
+        ">
+
 <!-- Guard: only allow if unlocked in last 30 minutes -->
-<script>
-(function(){
-  const MAX_AGE = 30*60*1000;
-  const ts = Number(sessionStorage.getItem('blackout.unlockedAt') || 0);
-  const hasLock = !!localStorage.getItem('blackout.lock.hash');
-  if (hasLock && (!ts || Date.now()-ts > MAX_AGE)) location.replace('index.html');
-})();
-</script>
+<script>(function(){const MAX_AGE=30*60*1000;const ts=Number(sessionStorage.getItem('blackout.unlockedAt')||0);const hasLock=!!localStorage.getItem('blackout.lock.hash');if(hasLock&&(!ts||Date.now()-ts>MAX_AGE)) location.replace('index.html');})();</script>
 
 <style>
-  :root{
-    --bg:#0a0b0f; --fg:#e9ebf2; --muted:#a6acc3; --accent:#8ba7ff; --ok:#35d69b; --err:#ff6b6b;
-    --card:#121420; --stroke:#23263a; --hover:#1a1d2c; --radius:18px;
-  }
+  :root{ --bg:#0a0b0f; --fg:#e9ebf2; --muted:#a6acc3; --accent:#8ba7ff; --ok:#35d69b; --err:#ff6b6b;
+         --card:#121420; --stroke:#23263a; --hover:#1a1d2c; --radius:18px; }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
   .wrap{max-width:1080px;margin:28px auto;padding:0 18px}
@@ -32,9 +37,7 @@
   .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
   label{display:block;font-size:12px;color:var(--muted);margin:6px 0 6px}
   input,select,button{font:inherit}
-  input[type="text"],input[type="password"],select{
-    width:100%;padding:12px;border-radius:14px;border:1px solid var(--stroke);background:#0e1020;color:var(--fg)
-  }
+  input[type="text"],input[type="password"],select{width:100%;padding:12px;border-radius:14px;border:1px solid var(--stroke);background:#0e1020;color:var(--fg)}
   input::placeholder{color:#8086a4}
   button{background:var(--accent);color:#0b0f1c;border:0;padding:12px 16px;border-radius:14px;font-weight:800;cursor:pointer}
   button.secondary{background:#222842;color:var(--fg)}
@@ -44,30 +47,15 @@
   .drop.active{outline:2px dashed var(--accent)}
   .log{white-space:pre-wrap;font-size:13px;line-height:1.45;background:#0d1122;border-radius:14px;padding:10px;border:1px solid #1d2135;min-height:54px}
   .ok{color:var(--ok)} .err{color:var(--err)} .hint{font-size:12px;color:var(--muted);margin-top:6px}
-  :is(input,select,button):focus{outline:none;box-shadow:0 0 0 3px rgba(139,167,255,.25)}
-  /* Mobile */
-  @media (max-width: 900px){
-    .grid{grid-template-columns:1fr}
-    .row,.row3{grid-template-columns:1fr}
-    .drop{min-height:150px}
-    button, input[type="text"],input[type="password"],select{font-size:16px}
-  }
-
-  /* Accessible hidden input (Safari-friendly) */
-  .sr-only{
-    position:absolute;width:1px;height:1px;padding:0;margin:-1px;
-    overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0
-  }
-
-  /* Compact dashed pill for cover picker */
-  .cover-picker{
-    display:inline-flex;align-items:center;gap:10px;
-    border:1.5px dashed #2d3350;border-radius:12px;
-    padding:10px 12px;background:#0e1020;cursor:pointer;user-select:none
-  }
-  .cover-picker .upload-text{font-size:.9rem;color:var(--muted)}
-  .cover-picker.active{outline:2px dashed var(--accent)}
+  @media (max-width: 900px){ .grid{grid-template-columns:1fr} .row,.row3{grid-template-columns:1fr} .drop{min-height:150px} button, input[type="text"],input[type="password"],select{font-size:16px} }
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .cover-picker{display:inline-flex;align-items:center;gap:10px;border:1.5px dashed #2d3350;border-radius:12px;padding:10px 12px;background:#0e1020;cursor:pointer;user-select:none}
+  .cover-picker .upload-text{font-size:.9rem;color:var(--muted)} .cover-picker.active{outline:2px dashed var(--accent)}
 </style>
+
+<!-- Argon2 runtime (worker + config). The worker loads argon2.min.js + argon2.wasm locally -->
+<script defer src="argon2.config.js"></script>
+<script defer src="argon2.worker.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -79,7 +67,6 @@
     <section class="card" id="enc-card">
       <h3>Encrypt → PNG</h3>
 
-      <!-- Drop area as label (best for iOS/Safari) -->
       <label class="drop" id="enc-drop" for="enc-file">
         <div><strong id="enc-drop-label">Drop file here</strong><br/>or choose…</div>
       </label>
@@ -95,7 +82,13 @@
           <select id="kdf-select">
             <option value="pbkdf2_std" selected>PBKDF2 — Standard</option>
             <option value="pbkdf2_strong">PBKDF2 — Strong</option>
+            <optgroup label="Argon2id (memory-hard)">
+              <option value="argon2id_interactive">Argon2id — Interactive</option>
+              <option value="argon2id_balanced">Argon2id — Balanced</option>
+              <option value="argon2id_high">Argon2id — High</option>
+            </optgroup>
           </select>
+          <small class="hint" id="kdfHint">PBKDF2 is most compatible; Argon2id is stronger on desktops.</small>
         </div>
         <div>
           <label>Output PNG name</label>
@@ -111,7 +104,6 @@
 
         <div>
           <label class="form-label">Cover Image (Optional)</label>
-          <!-- compact cover picker -->
           <label id="coverPicker" class="cover-picker" for="coverImage" role="button" aria-label="Choose cover image">
             <span class="upload-text">Choose cover image</span>
           </label>
@@ -150,57 +142,90 @@
 
 <script>
 /* ---------- small helpers ---------- */
-const $ = (id) => document.getElementById(id);
+const $ = (id)=>document.getElementById(id);
 const TE = new TextEncoder(), TD = new TextDecoder();
-function log(el, msg, cls=''){ el.className = 'log ' + (cls||''); el.textContent = msg; }
+function log(el,msg,cls=''){ el.className='log '+(cls||''); el.textContent=msg; }
 function concatBytes(...arrs){ let len=arrs.reduce((a,b)=>a+b.length,0),out=new Uint8Array(len),off=0; for(const a of arrs){ out.set(a,off); off+=a.length; } return out; }
 function be64(n){ const out=new Uint8Array(8); for(let i=7;i>=0;i--){ out[i]=Number(n&0xffn); n>>=8n; } return out; }
 function readBE64(u8,off){ let n=0n; for(let i=0;i<8;i++) n=(n<<8n)|BigInt(u8[off+i]); return n; }
 function randomBytes(n){ const out=new Uint8Array(n); let o=0; while(o<n){ const len=Math.min(n-o,65536); const chunk=new Uint8Array(len); crypto.getRandomValues(chunk); out.set(chunk,o); o+=len; } return out; }
-function safeFilename(name){ name=(name||'').normalize ? name.normalize('NFC') : (name||''); name=name.replace(/[\\/:*?"<>|]/g,'_').replace(/[\u0000-\u001F\u007F-\u009F]/g,'_').trim(); if(!name) name='file'; if(name.length>200) name=name.slice(0,200); return name; }
-function splitNameExt(name){ const i=(name||'').lastIndexOf('.'); return (i>0 && i<name.length-1)?{base:name.slice(0,i),ext:name.slice(i)}:{base:name||'file',ext:''}; }
+function safeFilename(name){ name=(name||'').normalize?name.normalize('NFC'):(name||''); name=name.replace(/[\\/:*?"<>|]/g,'_').replace(/[\u0000-\u001F\u007F-\u009F]/g,'_').trim(); if(!name) name='file'; if(name.length>200) name=name.slice(0,200); return name; }
+function splitNameExt(name){ const i=(name||'').lastIndexOf('.'); return (i>0&&i<name.length-1)?{base:name.slice(0,i),ext:name.slice(i)}:{base:name||'file',ext:''}; }
 function sanitizeExt(ext){ return (/^\.[A-Za-z0-9]{1,10}$/).test(ext||'') ? ext : ''; }
 
-/* ---------- KDFs ---------- */
+/* ---------- Argon2 worker bridge & guardrails ---------- */
+let ARGON_READY=false;
+let argonWorker=null;
+window.addEventListener('argon2-ready', ()=>{ ARGON_READY=true; });
+function isMobile(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
+function deviceMemGiB(){ return (navigator.deviceMemory||0); } // Chromium only
+
+async function argon2Derive(passUtf8, salt, mode){
+  if(!ARGON_READY) throw new Error('Argon2 engine not available; choose PBKDF2 or ensure argon2.min.js/wasm are present.');
+  return new Promise((resolve,reject)=>{
+    const id=Math.random().toString(36).slice(2);
+    const onMsg=(e)=>{
+      const d=e.data||{};
+      if(d && d.id===id){
+        argonWorker.removeEventListener('message',onMsg);
+        if(d.ok) resolve(new Uint8Array(d.key)); else reject(new Error(d.error||'Argon2 failed'));
+      }
+    };
+    argonWorker.addEventListener('message',onMsg);
+    argonWorker.postMessage({type:'derive', id, pass: passUtf8, salt, mode, caps:{mobile:isMobile(), memGiB:deviceMemGiB()}}, [passUtf8.buffer, salt.buffer]);
+  });
+}
+
+/* ---------- KDF selection (PBKDF2 + Argon2id) ---------- */
 async function kdf_pbkdf2(pass,salt,iters){
   const keyMaterial = await crypto.subtle.importKey('raw', TE.encode(pass), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt,iterations:iters}, keyMaterial, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
 }
-async function deriveKey(pass,salt,mode){
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const iters = mode==='pbkdf2_strong' ? (isMobile?400000:1000000) : 250000;
-  return kdf_pbkdf2(pass,salt,iters);
+async function deriveAesKey(pass,salt,mode){
+  if(mode.startsWith('argon2id')){
+    const raw = await argon2Derive(TE.encode(pass), salt, mode); // Uint8Array(32)
+    return crypto.subtle.importKey('raw', raw, {name:'AES-GCM'}, false, ['encrypt','decrypt']);
+  }
+  // PBKDF2 modes
+  const isMob = isMobile();
+  const iters = mode==='pbkdf2_strong' ? (isMob?400000:1000000) : 250000;
+  return kdf_pbkdf2(pass, salt, iters);
 }
 
 /* ---------- PNG helpers ---------- */
 async function imageFileToPngBytes(file){
   if (file && file.type === 'image/png') return new Uint8Array(await file.arrayBuffer());
-  const bmp = ('createImageBitmap' in window)
-    ? await createImageBitmap(file)
-    : await new Promise((res, rej) => {
-        const img = new Image(); img.onload = ()=>res(img); img.onerror = rej;
-        img.src = URL.createObjectURL(file);
-      });
-  const w=bmp.width, h=bmp.height;
-  let canvas; if (typeof OffscreenCanvas !== 'undefined') { canvas = new OffscreenCanvas(w,h); }
-  else { canvas = Object.assign(document.createElement('canvas'), {width:w,height:h}); }
-  const ctx = canvas.getContext('2d'); ctx.drawImage(bmp,0,0);
-  const blob = canvas.convertToBlob ? await canvas.convertToBlob({type:'image/png'})
-                                    : await new Promise(r => canvas.toBlob(r,'image/png'));
+  const bmp=('createImageBitmap' in window)? await createImageBitmap(file) : await new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=URL.createObjectURL(file); });
+  const w=bmp.width,h=bmp.height;
+  let canvas; if(typeof OffscreenCanvas!=='undefined'){ canvas=new OffscreenCanvas(w,h); } else { canvas=Object.assign(document.createElement('canvas'),{width:w,height:h}); }
+  const ctx=canvas.getContext('2d'); ctx.drawImage(bmp,0,0);
+  const blob=canvas.convertToBlob? await canvas.convertToBlob({type:'image/png'}) : await new Promise(r=>canvas.toBlob(r,'image/png'));
   return new Uint8Array(await blob.arrayBuffer());
 }
-
 async function makeBlackPNG(){
-  const size = 128;
-  let canvas; if (typeof OffscreenCanvas !== 'undefined') { canvas = new OffscreenCanvas(size,size); }
-  else { canvas = Object.assign(document.createElement('canvas'), {width:size,height:size}); }
-  const ctx = canvas.getContext('2d'); ctx.fillStyle='#000'; ctx.fillRect(0,0,size,size);
-  const blob = canvas.convertToBlob ? await canvas.convertToBlob({type:'image/png'})
-                                    : await new Promise(r=>canvas.toBlob(r,'image/png'));
+  const size=128; let canvas; if(typeof OffscreenCanvas!=='undefined'){ canvas=new OffscreenCanvas(size,size);} else { canvas=Object.assign(document.createElement('canvas'),{width:size,height:size}); }
+  const ctx=canvas.getContext('2d'); ctx.fillStyle='#000'; ctx.fillRect(0,0,size,size);
+  const blob=canvas.convertToBlob? await canvas.convertToBlob({type:'image/png'}) : await new Promise(r=>canvas.toBlob(r,'image/png'));
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-/* ---------- core: container ---------- */
+/* ---------- container v2 (versioned) ----------
+
+Old v1 (back-compat):
+  body = [marker(16)] [salt(16)] [nonce(12)] [ct(?)]
+
+New v2:
+  body = [marker(16)] [version(1)=1] [kdfCode(1)] [salt(16)] [nonce(12)] [ct(?)]
+  kdfCode:
+    0=pbkdf2_std, 1=pbkdf2_strong,
+    2=argon2id_interactive, 3=argon2id_balanced, 4=argon2id_high
+------------------------------------------------*/
+const KDF_CODE = {
+  'pbkdf2_std':0, 'pbkdf2_strong':1,
+  'argon2id_interactive':2, 'argon2id_balanced':3, 'argon2id_high':4
+};
+const CODE_KDF = Object.fromEntries(Object.entries(KDF_CODE).map(([k,v])=>[v,k]));
+
 async function encryptBlob(file, pass, storedName, kdfMode, coverPngBytes){
   const MAX_BYTES = 100 * 1024 * 1024;
   if (file.size > MAX_BYTES) throw new Error('File exceeds 100 MB cap.');
@@ -216,149 +241,143 @@ async function encryptBlob(file, pass, storedName, kdfMode, coverPngBytes){
   const metaJson = TE.encode(JSON.stringify(meta));
   const metaLen  = new Uint8Array(4); new DataView(metaLen.buffer).setUint32(0, metaJson.length, false);
   let plain = concatBytes(metaLen, metaJson, fileBytes);
-  const block = 256*1024, padLen = (block - (plain.length % block)) % block;
+  const block=256*1024, padLen=(block - (plain.length % block)) % block;
   if (padLen) plain = concatBytes(plain, randomBytes(padLen));
-  const salt = randomBytes(16), nonce = randomBytes(12);
-  const key = await deriveKey(pass, salt, kdfMode);
-  const ct  = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv:nonce}, key, plain));
+
+  const salt=randomBytes(16), nonce=randomBytes(12);
+  const key = await deriveAesKey(pass, salt, kdfMode);
+  const ct  = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce}, key, plain));
+
   const marker = randomBytes(16);
-  const body   = concatBytes(marker, salt, nonce, ct);
+  const header = concatBytes(marker, new Uint8Array([1]), new Uint8Array([KDF_CODE[kdfMode]??0]), salt, nonce);
+  const body   = concatBytes(header, ct);
   const len    = be64(BigInt(body.length));
   const trailer= concatBytes(len, marker);
-  const png = (coverPngBytes && coverPngBytes.length) ? coverPngBytes : await makeBlackPNG();
-  const out = concatBytes(png, body, trailer);
+  const png    = (coverPngBytes && coverPngBytes.length) ? coverPngBytes : await makeBlackPNG();
+  const out    = concatBytes(png, body, trailer);
   return new Blob([out], {type:'image/png'});
 }
 
 async function decryptPNG(pngFile, pass){
-  const bytes = new Uint8Array(await pngFile.arrayBuffer());
-  if (bytes.length < 24) throw new Error('Too small');
-  const len = readBE64(bytes, bytes.length - 24);
-  const bodyEndBig = BigInt(bytes.length - 24);
-  if (len <= 0n || len > bodyEndBig) throw new Error('Invalid container length');
-  const bodyStart = Number(bodyEndBig - len), bodyEnd = Number(bodyEndBig);
-  const body = bytes.slice(bodyStart, bodyEnd);
-  const markerFooter = bytes.slice(bytes.length - 16);
-  for (let i=0;i<16;i++) if (body[i] !== markerFooter[i]) throw new Error('Not a Blackout container (marker).');
-  const salt  = body.slice(16, 32);
-  const nonce = body.slice(32, 44);
-  const ct    = body.slice(44);
-  for (const mode of ['pbkdf2_strong', 'pbkdf2_std']){
-    try{
-      const key = await deriveKey(pass, salt, mode);
-      const plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv:nonce}, key, ct));
-      const metaLen = new DataView(plain.buffer, plain.byteOffset, plain.byteLength).getUint32(0, false);
-      const meta = JSON.parse(TD.decode(plain.slice(4, 4+metaLen)));
-      const fileBytes = plain.slice(4+metaLen, 4+metaLen + (meta.size||0));
-      let outName = 'restored.bin';
-      if (meta && typeof meta === 'object') {
-        if (meta.filename && meta.ext !== undefined) {
-          outName = safeFilename(meta.filename) + (sanitizeExt(meta.ext) || '');
-        } else if (meta.filename) {
-          outName = safeFilename(meta.filename);
-        }
-      }
-      return { meta, fileBytes, outName, mime: meta.mime || 'application/octet-stream' };
-    }catch(_){ /* try next */ }
-  }
-  throw new Error('Wrong passphrase or different KDF.');
-}
+  const bytes=new Uint8Array(await pngFile.arrayBuffer());
+  if (bytes.length<24) throw new Error('Too small');
+  const len=readBE64(bytes, bytes.length-24);
+  const bodyEndBig=BigInt(bytes.length-24);
+  if (len<=0n || len>bodyEndBig) throw new Error('Invalid container length');
+  const bodyStart=Number(bodyEndBig-len), bodyEnd=Number(bodyEndBig);
+  const body=bytes.slice(bodyStart, bodyEnd);
 
-/* ---------- filename/KDF/cover helpers (privacy-safe) ---------- */
+  // Check marker match
+  const markerFooter = bytes.slice(bytes.length-16);
+  for(let i=0;i<16;i++){ if(body[i]!==markerFooter[i]) throw new Error('Not a Blackout container (marker).'); }
+
+  let kdfMode='pbkdf2_std', salt, nonce, ct, version=0;
+  // Try v2
+  if (body.length>=16+1+1+16+12 && body[16]===1){
+    version=1;
+    const kdfCode=body[17]; kdfMode=CODE_KDF[kdfCode]||'pbkdf2_std';
+    salt = body.slice(18, 34);
+    nonce= body.slice(34, 46);
+    ct   = body.slice(46);
+  } else {
+    // v1 fallback
+    salt = body.slice(16, 32);
+    nonce= body.slice(32, 44);
+    ct   = body.slice(44);
+  }
+
+  async function tryDecrypt(mode){
+    const key = await deriveAesKey(pass, salt, mode);
+    const plain = new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:nonce}, key, ct));
+    const metaLen=new DataView(plain.buffer, plain.byteOffset, plain.byteLength).getUint32(0, false);
+    const meta = JSON.parse(TD.decode(plain.slice(4, 4+metaLen)));
+    const fileBytes = plain.slice(4+metaLen, 4+metaLen + (meta.size||0));
+    let outName='restored.bin';
+    if (meta && typeof meta==='object'){
+      if (meta.filename && meta.ext!==undefined){ outName = safeFilename(meta.filename) + (sanitizeExt(meta.ext)||''); }
+      else if (meta.filename){ outName = safeFilename(meta.filename); }
+    }
+    return { meta, fileBytes, outName, mime: meta.mime||'application/octet-stream' };
+  }
+
+  if (version===1){
+    // Exact KDF mode known
+    return tryDecrypt(kdfMode);
+  } else {
+    // Old file: try PBKDF2 modes
+    for (const mode of ['pbkdf2_strong','pbkdf2_std']){
+      try{ return await tryDecrypt(mode); }catch(_){}
+    }
+    throw new Error('Wrong passphrase or unknown KDF.');
+  }
+}
+</script>
+
+<!-- --- Privacy-safe filename helpers (unchanged) --- -->
+<script>
 (function(){
   function pick(){ for(const s of arguments){ const el=document.querySelector(s); if(el) return el; } return null; }
   const outNameEl = pick('#enc-png-name','input[name="outputName"]');
   const kdfSel    = pick('#kdf-select','select[name="kdf"]');
   const coverEl   = document.getElementById('coverImage');
 
-  function genOutputName(ext='png'){
-    const a = Math.random().toString(36).slice(2,8);
-    const b = Math.random().toString(36).slice(2,6);
-    return `blackout_${a}_${b}.${ext}`;
-  }
-  function normalizeOutName(raw, ext='png'){
-    let s = (raw||'').trim().replace(/[/\\:*?"<>|]/g, '-');
-    if (!s) return genOutputName(ext);
-    s = s.replace(/^[.\s]+/,'');
-    const wanted = ext.toLowerCase();
-    if (s.toLowerCase().endsWith('.blackout')) return s;
-    if (!s.toLowerCase().endsWith('.'+wanted)) s += '.'+wanted;
-    return s;
-  }
+  function genOutputName(ext='png'){ const a=Math.random().toString(36).slice(2,8); const b=Math.random().toString(36).slice(2,6); return `blackout_${a}_${b}.${ext}`; }
+  function normalizeOutName(raw,ext='png'){ let s=(raw||'').trim().replace(/[/\\:*?"<>|]/g,'-'); if(!s) return genOutputName(ext); s=s.replace(/^[.\s]+/,''); const wanted=ext.toLowerCase(); if (s.toLowerCase().endsWith('.blackout')) return s; if(!s.toLowerCase().endsWith('.'+wanted)) s+='.'+wanted; return s; }
 
-  window.computeSafeOutputName = function(userProvidedName, forceExt){
-    const ext = (forceExt || 'png').toLowerCase();
-    if (!userProvidedName) return genOutputName(ext);
-    return normalizeOutName(userProvidedName, ext);
-  };
-
-  window.getSelectedKdfLabel = function(){
-    if (kdfSel){
-      const opt = kdfSel.options[kdfSel.selectedIndex];
-      return (opt && (opt.textContent||opt.innerText||'')).trim() || 'PBKDF2 — Standard';
-    }
-    return 'PBKDF2 — Standard';
-  };
-
-  window.isCoverUsed = function(){
-    try { return !!(coverEl && coverEl.files && coverEl.files.length); } catch { return false; }
-  };
+  window.computeSafeOutputName = function(userProvidedName,forceExt){ const ext=(forceExt||'png').toLowerCase(); if(!userProvidedName) return genOutputName(ext); return normalizeOutName(userProvidedName,ext); };
+  window.getSelectedKdfLabel = function(){ if(kdfSel){ const opt=kdfSel.options[kdfSel.selectedIndex]; return (opt&&(opt.textContent||opt.innerText||'')).trim()||'PBKDF2 — Standard'; } return 'PBKDF2 — Standard'; };
+  window.isCoverUsed = function(){ try{ return !!(coverEl && coverEl.files && coverEl.files.length); } catch { return false; } };
 })();
 </script>
 
-<!-- ---------- UI wiring + Drag & Drop ---------- -->
+<!-- --- UI wiring + drag/drop + Argon2 worker boot --- -->
 <script>
 (function(){
   const encFile=$('enc-file'), encPass=$('enc-pass'), encLog=$('enc-log'), btnEnc=$('btn-enc'), btnClearEnc=$('btn-clear-enc');
   const decFile=$('dec-file'), decPass=$('dec-pass'), decLog=$('dec-log'), btnDec=$('btn-dec'), btnClearDec=$('btn-clear-dec');
   const encStoredName=$('enc-stored-name'), encPNGName=$('enc-png-name'), kdfSelect=$('kdf-select');
-  const encCover=document.getElementById('coverImage');
-  const encDrop=$('enc-drop'), decDrop=$('dec-drop');
-  const encDropLabel=$('enc-drop-label'), decDropLabel=$('dec-drop-label');
+  const encCover=document.getElementById('coverImage'); const encDrop=$('enc-drop'), decDrop=$('dec-drop'); const encDropLabel=$('enc-drop-label'), decDropLabel=$('dec-drop-label');
+  const kdfHint = document.getElementById('kdfHint');
 
-  // Prevent page navigation on drop
-  ['dragover','drop'].forEach(t=>{
-    addEventListener(t, e=>e.preventDefault(), true);
-    document.addEventListener(t, e=>e.preventDefault(), true);
-  });
+  // Boot Argon2 worker (if available)
+  try{ argonWorker = new Worker('argon2.worker.js'); argonWorker.postMessage({type:'ping'});}
+  catch(e){ console.debug('Argon2 worker unavailable', e); }
 
-  function wireDrop(zone, input, labelEl, acceptFn){
-    zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('active'); });
-    zone.addEventListener('dragleave', ()=> zone.classList.remove('active'));
-    zone.addEventListener('drop', e=>{
+  // Prevent nav on drop
+  ['dragover','drop'].forEach(t=>{ addEventListener(t,e=>e.preventDefault(),true); document.addEventListener(t,e=>e.preventDefault(),true); });
+
+  function wireDrop(zone,input,labelEl,acceptFn){
+    zone.addEventListener('dragover',e=>{ e.preventDefault(); zone.classList.add('active'); });
+    zone.addEventListener('dragleave',()=>zone.classList.remove('active'));
+    zone.addEventListener('drop',e=>{
       e.preventDefault(); zone.classList.remove('active');
-      const files = Array.from(e.dataTransfer.files || []);
-      const picked = acceptFn ? files.find(acceptFn) : files[0];
-      if (!picked) return;
-      let dt; try { dt = new DataTransfer(); } catch { dt = new ClipboardEvent('').clipboardData || null; }
-      if (dt) { dt.items.add(picked); input.files = dt.files; }
-      input.dispatchEvent(new Event('change', {bubbles:true}));
-      if (labelEl) labelEl.textContent = picked.name;
+      const files=Array.from(e.dataTransfer.files||[]); const picked=acceptFn?files.find(acceptFn):files[0]; if(!picked) return;
+      let dt; try{ dt=new DataTransfer(); }catch{ dt=new ClipboardEvent('').clipboardData||null; }
+      if(dt){ dt.items.add(picked); input.files=dt.files; }
+      input.dispatchEvent(new Event('change',{bubbles:true})); if(labelEl) labelEl.textContent=picked.name;
     });
   }
-  wireDrop(encDrop, encFile, encDropLabel, () => true);
-  wireDrop(decDrop, decFile, decDropLabel, f => /image\/png$/i.test(f.type));
+  wireDrop(encDrop, encFile, encDropLabel, ()=>true);
+  wireDrop(decDrop, decFile, decDropLabel, f=>/image\/png$/i.test(f.type));
 
-  encFile.addEventListener('change', () => {
-    if (encFile.files.length) {
-      encDropLabel.textContent = encFile.files[0].name;
-      log(encLog, `Picked: ${encFile.files[0].name}`);
-    }
-  });
-  decFile.addEventListener('change', () => {
-    if (decFile.files.length) {
-      decDropLabel.textContent = decFile.files[0].name;
-      log(decLog, `Picked PNG: ${decFile.files[0].name}`);
-    }
-  });
+  encFile.addEventListener('change',()=>{ if(encFile.files.length){ encDropLabel.textContent=encFile.files[0].name; log(encLog,`Picked: ${encFile.files[0].name}`);} });
+  decFile.addEventListener('change',()=>{ if(decFile.files.length){ decDropLabel.textContent=decFile.files[0].name; log(decLog,`Picked PNG: ${decFile.files[0].name}`);} });
 
-  btnClearEnc.onclick = ()=>{ encFile.value=''; encPass.value=''; encStoredName.value=''; encPNGName.value=''; encCover.value=''; log(encLog,'Cleared.'); encDropLabel.textContent='Drop file here'; };
-  btnClearDec.onclick = ()=>{ decFile.value=''; decPass.value=''; log(decLog,'Cleared.'); decDropLabel.textContent='Drop PNG here'; };
+  btnClearEnc.onclick=()=>{ encFile.value=''; encPass.value=''; encStoredName.value=''; encPNGName.value=''; encCover.value=''; log(encLog,'Cleared.'); encDropLabel.textContent='Drop file here'; };
+  btnClearDec.onclick=()=>{ decFile.value=''; decPass.value=''; log(decLog,'Cleared.'); decDropLabel.textContent='Drop PNG here'; };
+
+  // Warn if Argon2 selected on mobile
+  kdfSelect.addEventListener('change', ()=>{
+    const val=kdfSelect.value, mob=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if(val.startsWith('argon2id') && mob) kdfHint.textContent='Argon2id may be heavy on mobile; consider PBKDF2 or Argon2id — Interactive.';
+    else kdfHint.textContent='PBKDF2 is most compatible; Argon2id is stronger on desktops.';
+  });
 
   btnEnc.onclick = async ()=>{
     const f=encFile.files[0], p=encPass.value, mode=kdfSelect.value;
     if(!f) return log(encLog,'Pick a file.','err');
     if(!p || p.length<6) return log(encLog,'Use a stronger passphrase (6+).','err');
+    if(mode.startsWith('argon2id') && !ARGON_READY) return log(encLog,'Argon2 engine missing. Include argon2.min.js & argon2.wasm at project root, then reload.', 'err');
     btnEnc.disabled=true; log(encLog,'Encrypting…');
     try{
       let coverBytes=null;
@@ -367,30 +386,14 @@ async function decryptPNG(pngFile, pass){
         coverBytes = await imageFileToPngBytes(encCover.files[0]);
       }
       const blob = await encryptBlob(f, p, encStoredName.value, mode, coverBytes);
-
-      // --- PRIVACY-SAFE OUTPUT NAME ---
       const outName = window.computeSafeOutputName(($('enc-png-name')?.value || '').trim(), 'png');
 
-      // Download
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download=outName;
-      a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),8000);
-
-      // Status: show only the output name (no original leak)
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=outName; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),8000);
       log(encLog,'Done → '+outName,'ok');
 
-      // Accurate Vault log (only if user has an active/unlocked vault)
       const kdfLabel = window.getSelectedKdfLabel();
       const notes = window.isCoverUsed() ? 'Cover used' : '';
-      window.blackoutLogEncryption?.({
-        originalName: f?.name || '(unknown)',
-        outputName: outName,
-        size: f?.size || 0,
-        kdf: kdfLabel,
-        notes
-      });
+      window.blackoutLogEncryption?.({ originalName: f?.name || '(unknown)', outputName: outName, size: f?.size || 0, kdf: kdfLabel, notes });
     }catch(e){ log(encLog, e?.message || String(e), 'err'); }
     finally{ btnEnc.disabled=false; }
   };
@@ -413,230 +416,42 @@ async function decryptPNG(pngFile, pass){
 
 <!-- Cover picker label/drag -->
 <script>
-const coverInput  = document.getElementById('coverImage');
-const coverPicker = document.getElementById('coverPicker');
-if (coverInput && coverPicker) {
-  const coverText = coverPicker.querySelector('.upload-text');
-  coverInput.addEventListener('change', () => {
-    const f = coverInput.files && coverInput.files[0];
-    coverText.textContent = f ? f.name : 'Choose cover image';
-  });
-  ['dragover','drop'].forEach(ev =>
-    coverPicker.addEventListener(ev, e => e.preventDefault())
-  );
-  coverPicker.addEventListener('dragover', () => coverPicker.classList.add('active'));
-  coverPicker.addEventListener('dragleave', () => coverPicker.classList.remove('active'));
-  coverPicker.addEventListener('drop', e => {
+const coverInput=document.getElementById('coverImage'); const coverPicker=document.getElementById('coverPicker');
+if(coverInput && coverPicker){
+  const coverText=coverPicker.querySelector('.upload-text');
+  coverInput.addEventListener('change',()=>{ const f=coverInput.files&&coverInput.files[0]; coverText.textContent=f?f.name:'Choose cover image'; });
+  ['dragover','drop'].forEach(ev=>coverPicker.addEventListener(ev,e=>e.preventDefault()));
+  coverPicker.addEventListener('dragover',()=>coverPicker.classList.add('active'));
+  coverPicker.addEventListener('dragleave',()=>coverPicker.classList.remove('active'));
+  coverPicker.addEventListener('drop',e=>{
     coverPicker.classList.remove('active');
-    const files = e.dataTransfer && e.dataTransfer.files;
-    const f = files && files[0];
-    if (!f) return;
-    let dt;
-    try { dt = new DataTransfer(); } catch { dt = new ClipboardEvent('').clipboardData || null; }
-    if (dt) { dt.items.add(f); coverInput.files = dt.files; }
-    else { coverText.textContent = f.name; return; }
-    coverInput.dispatchEvent(new Event('change', { bubbles: true }));
+    const files=e.dataTransfer&&e.dataTransfer.files; const f=files&&files[0]; if(!f) return;
+    let dt; try{ dt=new DataTransfer(); }catch{ dt=new ClipboardEvent('').clipboardData||null; }
+    if(dt){ dt.items.add(f); coverInput.files=dt.files; } else { coverText.textContent=f.name; return; }
+    coverInput.dispatchEvent(new Event('change',{bubbles:true}));
   });
 }
 </script>
 
-<!-- === Tutorial styles & Help button (unchanged) === -->
+<!-- Vaults card (unchanged from your latest) -->
 <style>
-  .help-fab{
-    position:fixed; top:14px; right:14px; z-index:9998;
-    background:#222842; color:#e9ebf2; border:1px solid #2f3350; border-radius:999px;
-    padding:8px 12px; font-weight:700; cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,.35)
-  }
-  .help-fab:focus{outline:none; box-shadow:0 0 0 3px rgba(139,167,255,.35)}
-  .tut-overlay{
-    position:fixed; inset:0; display:none; place-items:center; padding:18px;
-    background:rgba(8,10,20,.65); backdrop-filter:saturate(110%) blur(6px);
-    z-index:10000;
-  }
-  .tut-overlay[aria-hidden="false"]{ display:grid; }
-  .tut-card{
-    width:min(720px,94vw); background:#121420; color:#e9ebf2;
-    border:1px solid #23263a; border-radius:18px; box-shadow:0 16px 48px rgba(0,0,0,.45);
-  }
-  .tut-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #23263a }
-  .tut-title{ font-size:18px; font-weight:800; letter-spacing:-.01em }
-  .tut-x{ background:transparent; border:0; color:#a6acc3; cursor:pointer; font-size:20px; line-height:1 }
-  .tut-body{ padding:16px; display:grid; gap:12px }
-  .tut-slide h3{ margin:.2rem 0 .4rem; font-size:20px }
-  .tut-slide p, .tut-slide ul{ margin:.2rem 0; color:#a6acc3; font-size:14px; line-height:1.5 }
-  .tut-slide ul{ padding-left:18px }
-  .tut-foot{ display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid #23263a }
-  .tut-btn{ background:#8ba7ff; color:#0b0f1c; border:0; padding:10px 14px; border-radius:12px; font-weight:800; cursor:pointer }
-  .tut-btn.secondary{ background:#222842; color:#e9ebf2 }
-  .tut-dots{ display:flex; gap:6px }
-  .tut-dot{ width:8px; height:8px; border-radius:50%; background:#2d3350 }
-  .tut-dot.active{ background:#8ba7ff }
-</style>
-
-<button id="helpBtn" class="help-fab" aria-haspopup="dialog" aria-controls="tutorialModal" title="Help / Tutorial">Help</button>
-
-<div id="tutorialModal" class="tut-overlay" role="dialog" aria-modal="true" aria-hidden="true">
-  <div class="tut-card" role="document">
-    <div class="tut-head">
-      <div class="tut-title">Blackout — Quick Tour</div>
-      <button class="tut-x" id="tutClose" aria-label="Close tutorial">×</button>
-    </div>
-    <div class="tut-body">
-      <section class="tut-slide" data-slide="0">
-        <h3>What Blackout does</h3>
-        <p>Turn <strong>any file</strong> into a PNG that looks like a normal image, or export a safer
-        <code>.blackout</code> container. Decrypt to get the original file back — fully offline.</p>
-        <ul>
-          <li>Encryption: AES-256-GCM with PBKDF2-SHA-256 (client-side WebCrypto).</li>
-          <li>Optional cover image to “camouflage” your PNG.</li>
-          <li>Best for sharing: <code>.blackout</code> (no image compression risk).</li>
-        </ul>
-      </section>
-      <section class="tut-slide" data-slide="1" hidden>
-        <h3>Encrypt → PNG</h3>
-        <ul>
-          <li>Drop a file in the left card (or choose).</li>
-          <li>Enter a strong passphrase and pick KDF strength.</li>
-          <li>Optionally set a “Stored filename” and a cover image.</li>
-          <li>Click <strong>Encrypt</strong> → download your PNG.</li>
-        </ul>
-      </section>
-      <section class="tut-slide" data-slide="2" hidden>
-        <h3>Decrypt ← PNG</h3>
-        <ul>
-          <li>Drop the PNG in the right card.</li>
-          <li>Enter the same passphrase you used to encrypt.</li>
-          <li>Click <strong>Decrypt</strong> → your original file is restored.</li>
-        </ul>
-      </section>
-      <section class="tut-slide" data-slide="3" hidden>
-        <h3>Sharing & Tips</h3>
-        <ul>
-          <li>Don’t send PNGs through apps that compress images — it corrupts data.</li>
-          <li>Prefer sending <strong>.blackout</strong> (or ZIP) as a <strong>Document</strong>.</li>
-          <li>App Lock is for UX gating; encryption protects your files.</li>
-        </ul>
-      </section>
-    </div>
-    <div class="tut-foot">
-      <button id="tutSkip" class="tut-btn secondary">Skip</button>
-      <div class="tut-dots" aria-hidden="true">
-        <span class="tut-dot" data-dot="0"></span>
-        <span class="tut-dot" data-dot="1"></span>
-        <span class="tut-dot" data-dot="2"></span>
-        <span class="tut-dot" data-dot="3"></span>
-      </div>
-      <div style="display:flex; gap:8px">
-        <button id="tutPrev" class="tut-btn secondary" disabled>Back</button>
-        <button id="tutNext" class="tut-btn">Next</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-(function(){
-  const LS_KEY = 'blackout.tutorialSeen';
-  const modal = document.getElementById('tutorialModal');
-  const helpBtn = document.getElementById('helpBtn');
-  const btnNext = document.getElementById('tutNext');
-  const btnPrev = document.getElementById('tutPrev');
-  const btnSkip = document.getElementById('tutSkip');
-  const btnClose= document.getElementById('tutClose');
-  const slides = [...modal.querySelectorAll('.tut-slide')];
-  const dots   = [...modal.querySelectorAll('.tut-dot')];
-  let i = 0, lastFocus = null;
-
-  function setDot(n){ dots.forEach((d,idx)=>d.classList.toggle('active', idx===n)); }
-  function showSlide(n){
-    i = Math.max(0, Math.min(slides.length-1, n));
-    slides.forEach((s,idx)=> s.hidden = idx !== i);
-    setDot(i);
-    btnPrev.disabled = (i===0);
-    btnNext.textContent = (i===slides.length-1) ? 'Done' : 'Next';
-  }
-  function openTutorial(initial=false){
-    lastFocus = document.activeElement;
-    modal.setAttribute('aria-hidden','false');
-    showSlide(initial ? 0 : i);
-    (modal.querySelector('.tut-x') || modal).focus({preventScroll:true});
-    trapFocus(true);
-  }
-  function closeTutorial(markSeen=true){
-    modal.setAttribute('aria-hidden','true');
-    trapFocus(false);
-    if (markSeen) localStorage.setItem(LS_KEY, '1');
-    lastFocus && lastFocus.focus({preventScroll:true});
-  }
-
-  function trapFocus(enable){
-    function loop(e){
-      if (!enable || modal.getAttribute('aria-hidden')==='true') return;
-      const f = modal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
-      const ff = Array.from(f).filter(el=>!el.hasAttribute('disabled'));
-      if (!ff.length) return;
-      const first = ff[0], last = ff[ff.length-1];
-      if (e.key === 'Tab'){
-        if (e.shiftKey && document.activeElement === first){ last.focus(); e.preventDefault(); }
-        else if (!e.shiftKey && document.activeElement === last){ first.focus(); e.preventDefault(); }
-      }
-      if (e.key === 'Escape'){ closeTutorial(false); }
-      if (e.key === 'ArrowRight'){ btnNext.click(); }
-      if (e.key === 'ArrowLeft'){ if(!btnPrev.disabled) btnPrev.click(); }
-    }
-    (enable ? document.addEventListener : document.removeEventListener)('keydown', loop);
-  }
-
-  btnNext.addEventListener('click', ()=>{ if (i < slides.length-1) showSlide(i+1); else closeTutorial(true); });
-  btnPrev.addEventListener('click', ()=> showSlide(i-1));
-  btnSkip.addEventListener('click', ()=> closeTutorial(true));
-  btnClose.addEventListener('click', ()=> closeTutorial(false));
-  helpBtn.addEventListener('click', ()=> openTutorial(false));
-
-  if (!localStorage.getItem(LS_KEY)) setTimeout(()=>openTutorial(true), 250);
-  setDot(0);
-})();
-</script>
-
-<!-- ===================== Vaults Card (full width, aligned to 1080px) ===================== -->
-<style>
-  .vaults-card{
-    width:min(1080px, 94vw);           /* aligned with main wrap */
-    margin:24px auto 60px;
-    background:#121420; color:#e9ebf2;
-    border:1px solid #23263a; border-radius:18px;
-    box-shadow:0 16px 48px rgba(0,0,0,.45);
-  }
-  .vaults-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid #23263a }
-  .vaults-title{ font-size:20px; font-weight:800; letter-spacing:-.01em }
-  .vaults-body{ padding:14px 18px; display:grid; gap:16px }
-
-  .vaults-actions{ display:flex; gap:10px; flex-wrap:wrap }
-  .vbtn{ background:#222842; color:#e9ebf2; border:1px solid #2f3350; border-radius:12px; padding:10px 14px; font-weight:700; cursor:pointer }
-  .vbtn.primary{ background:#8ba7ff; color:#0b0f1c; border-color:#8ba7ff }
-  .vinput{
-    width:100%; max-width:360px; padding:10px 12px; border-radius:10px;
-    border:1px solid #2d3350; background:#0b0f1c; color:#e9ebf2
-  }
-  .vlist{ display:grid; gap:10px }
-  .vrow{
-    border:1px solid #23263a; border-radius:12px; padding:10px 12px;
-    background:#0f1320;
-  }
-  .vrow-head{ display:grid; grid-template-columns: 1fr auto auto auto auto; gap:12px; align-items:center }
-  .vname{ font-weight:800 }
-  .vmeta{ color:#a6acc3; font-size:12px }
-  .vrow-actions{ display:flex; gap:8px; justify-content:flex-end }
-  .vcollapse{ background:#222842; border:0; color:#e9ebf2; border-radius:10px; padding:6px 10px; cursor:pointer }
-  .vrow-body{ margin-top:10px; display:none }
-  .vrow[aria-expanded="true"] .vrow-body{ display:block }
-
-  .vtable-wrap{ overflow:auto; max-height:40vh; border:1px solid #23263a; border-radius:12px; padding:8px; }
-  .vtable{ width:100%; border-collapse:separate; border-spacing:0 6px; font-size:14px }
-  .vtable th{ text-align:left; color:#a6acc3; font-weight:600 }
-  .vtable td{ vertical-align:top }
-  .hint{ color:#a6acc3; font-size:12px }
-  .warn{ color:#f39c9c; font-size:12px }
+  .vaults-card{width:min(1080px,94vw);margin:24px auto 60px;background:#121420;color:#e9ebf2;border:1px solid #23263a;border-radius:18px;box-shadow:0 16px 48px rgba(0,0,0,.45);}
+  .vaults-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #23263a}
+  .vaults-title{font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .vaults-body{padding:14px 18px;display:grid;gap:16px}
+  .vaults-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .vbtn{background:#222842;color:#e9ebf2;border:1px solid #2f3350;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .vbtn.primary{background:#8ba7ff;color:#0b0f1c;border-color:#8ba7ff}
+  .vinput{width:100%;max-width:360px;padding:10px 12px;border-radius:10px;border:1px solid #2d3350;background:#0b0f1c;color:#e9ebf2}
+  .vlist{display:grid;gap:10px}
+  .vrow{border:1px solid #23263a;border-radius:12px;padding:10px 12px;background:#0f1320}
+  .vrow-head{display:grid;grid-template-columns:1fr auto auto auto auto;gap:12px;align-items:center}
+  .vname{font-weight:800}.vmeta{color:#a6acc3;font-size:12px}.vrow-actions{display:flex;gap:8px;justify-content:flex-end}
+  .vcollapse{background:#222842;border:0;color:#e9ebf2;border-radius:10px;padding:6px 10px;cursor:pointer}
+  .vrow-body{margin-top:10px;display:none}.vrow[aria-expanded="true"] .vrow-body{display:block}
+  .vtable-wrap{overflow:auto;max-height:40vh;border:1px solid #23263a;border-radius:12px;padding:8px}
+  .vtable{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:14px}.vtable th{text-align:left;color:#a6acc3;font-weight:600}.vtable td{vertical-align:top}
+  .hint{color:#a6acc3;font-size:12px}.warn{color:#f39c9c;font-size:12px}
 </style>
 
 <section class="vaults-card" id="vaultsCard" aria-label="Vaults">
@@ -649,293 +464,70 @@ if (coverInput && coverPicker) {
   </div>
 
   <div class="vaults-body">
-    <div id="vaultsNotice" class="hint">
-      No vault unlocked. Create one or unlock an existing vault to start auto-logging encrypts.
-    </div>
+    <div id="vaultsNotice" class="hint">No vault unlocked. Create one or unlock an existing vault to start auto-logging encrypts.</div>
     <div id="vaultsList" class="vlist"></div>
   </div>
 </section>
 
 <script>
-/* ================================================================
-   Multi-Vault System (encrypted at rest, unlocked with App Lock passcode)
-   Storage layout:
-     - Index:   localStorage['blackout.vaults.index.v1'] = [{id,name,created,updated,count}]
-     - Vault N: localStorage['blackout.vault.v1::<id>'] = {v:1, iv, salt, data, ts}
-   Encryption:
-     - AES-256-GCM; per-vault random salt; PBKDF2-SHA-256 (150k) using the App-Lock passcode.
-   Active vault:
-     - sessionStorage['blackout.activeVaultId'] (in-memory across tab lifetime)
-================================================================ */
+/* === Vaults (unchanged) === */
 (function(){
-  const IDX_KEY = 'blackout.vaults.index.v1';
-  const VAULT_PREFIX = 'blackout.vault.v1::';
-  const ACTIVE_KEY = 'blackout.activeVaultId';
-
-  const enc = new TextEncoder(), dec = new TextDecoder();
-  const $ = sel => document.querySelector(sel);
-  const listEl = $('#vaultsList');
-  const noticeEl = $('#vaultsNotice');
-
-  // In-memory unlocked state
-  const unlocked = new Map(); // id -> {key:CryptoKey, data:Array}
-
-  // ---------- helpers ----------
-  function b64e(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
-  function b64d(s){ return Uint8Array.from(atob(s), c=>c.charCodeAt(0)); }
-  function now(){ return Date.now(); }
-  function fmt(n){
-    const u=['B','KB','MB','GB']; let i=0; while(n>=1024&&i<u.length-1){n/=1024;i++;}
-    return (n<10&&i? n.toFixed(1): Math.round(n))+' '+u[i];
-  }
-
-  function readIndex(){
-    try{ return JSON.parse(localStorage.getItem(IDX_KEY)||'[]'); }catch{ return []; }
-  }
+  const IDX_KEY='blackout.vaults.index.v1', VAULT_PREFIX='blackout.vault.v1::', ACTIVE_KEY='blackout.activeVaultId';
+  const enc=new TextEncoder(), dec=new TextDecoder(); const $=s=>document.querySelector(s);
+  const listEl=$('#vaultsList'), noticeEl=$('#vaultsNotice'); const unlocked=new Map();
+  function b64e(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); } function b64d(s){ return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); }
+  function now(){ return Date.now(); } function fmt(n){ const u=['B','KB','MB','GB']; let i=0; while(n>=1024&&i<u.length-1){n/=1024;i++;} return (n<10&&i?n.toFixed(1):Math.round(n))+' '+u[i]; }
+  function readIndex(){ try{ return JSON.parse(localStorage.getItem(IDX_KEY)||'[]'); }catch{ return []; } }
   function writeIndex(arr){ localStorage.setItem(IDX_KEY, JSON.stringify(arr)); }
-
-  function readVaultRaw(id){
-    try{ const s = localStorage.getItem(VAULT_PREFIX+id); return s? JSON.parse(s): null; }catch{ return null; }
-  }
-  function writeVaultRaw(id, obj){
-    localStorage.setItem(VAULT_PREFIX+id, JSON.stringify(obj));
-  }
-
-  async function deriveKey(pass, salt, iters=150000){
-    const base = await crypto.subtle.importKey('raw', enc.encode(pass), {name:'PBKDF2'}, false, ['deriveKey']);
-    return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations: iters, hash:'SHA-256'},
-                                   base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
-  }
-
-  async function encryptArr(key, arr){
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(JSON.stringify(arr)));
-    return {iv: b64e(iv), data: b64e(ct), ts: now()};
-  }
-  async function decryptArr(key, ivB64, dataB64){
-    const iv=b64d(ivB64), data=b64d(dataB64);
-    const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, data);
-    return JSON.parse(dec.decode(pt));
-  }
-
+  function readVaultRaw(id){ try{ const s=localStorage.getItem(VAULT_PREFIX+id); return s?JSON.parse(s):null; }catch{ return null; } }
+  function writeVaultRaw(id,obj){ localStorage.setItem(VAULT_PREFIX+id, JSON.stringify(obj)); }
+  async function deriveKey(pass,salt,iters=150000){ const base=await crypto.subtle.importKey('raw',enc.encode(pass),{name:'PBKDF2'},false,['deriveKey']); return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iters,hash:'SHA-256'}, base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); }
+  async function encryptArr(key,arr){ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(arr))); return {iv:b64e(iv),data:b64e(ct),ts:now()}; }
+  async function decryptArr(key,ivB64,dataB64){ const iv=b64d(ivB64), data=b64d(dataB64); const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data); return JSON.parse(dec.decode(pt)); }
   function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
-
-  // ---------- UI render ----------
-  function render(){
-    const idx = readIndex().sort((a,b)=> (b.updated||b.created) - (a.updated||a.created));
-    listEl.innerHTML = '';
-    if (!idx.length){
-      listEl.innerHTML = `<div class="hint">No vaults yet. Create your first vault above.</div>`;
-      return;
-    }
-
-    const activeId = sessionStorage.getItem(ACTIVE_KEY);
-    noticeEl.textContent = unlocked.size ? `Active vault: ${activeId ? (idx.find(v=>v.id===activeId)?.name||'Unknown') : '—'}` :
-                                           'No vault unlocked. Create or unlock to start auto-logging.';
-
-    for(const v of idx){
-      const row = document.createElement('div');
-      row.className = 'vrow';
-      row.setAttribute('data-id', v.id);
-      row.setAttribute('aria-expanded', 'false');
-      const isUnlocked = unlocked.has(v.id);
-      const count = v.count || 0;
-      const updated = new Date(v.updated||v.created).toLocaleString();
-
-      row.innerHTML = `
-        <div class="vrow-head">
-          <div>
-            <div class="vname">${escapeHtml(v.name)}</div>
-            <div class="vmeta">Created ${new Date(v.created).toLocaleString()} • Updated ${updated} • ${count} item${count===1?'':'s'}</div>
-          </div>
-          <div class="vmeta ${isUnlocked?'':'warn'}" style="justify-self:end">${isUnlocked ? 'Unlocked' : 'Locked'}</div>
-          <div class="vrow-actions">
-            ${isUnlocked
-              ? `<button class="vbtn" data-act="lock">Lock</button>
-                 <button class="vbtn" data-act="export">Export CSV</button>
-                 <button class="vbtn" data-act="clear">Clear</button>`
-              : `<input type="password" class="vinput" data-act="pass" placeholder="App Lock passcode" style="max-width:220px">
-                 <button class="vbtn primary" data-act="unlock">Unlock</button>`
-            }
-            <button class="vbtn" data-act="rename">Rename</button>
-            <button class="vbtn" data-act="delete">Delete</button>
-            <button class="vcollapse" data-act="toggle">${isUnlocked?'Collapse':'Expand'}</button>
-          </div>
-        </div>
-        <div class="vrow-body">
-          ${isUnlocked ? tableHtml(v.id, unlocked.get(v.id).data) : `<div class="hint">Unlock to view entries.</div>`}
-        </div>
-      `;
-      attachRowHandlers(row, v);
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function tableHtml(id,arr){ const rows=[...arr].sort((a,b)=>(b.when||0)-(a.when||0)); const tr=rows.map(r=>`<tr><td>${new Date(r.when||Date.now()).toLocaleString()}</td><td>${escapeHtml(r.originalName||'-')}</td><td style="text-align:right">${fmt(r.size||0)}</td><td>${escapeHtml(r.outputName||'-')}</td><td>${escapeHtml(r.kdf||'-')}</td><td>${escapeHtml(r.notes||'')}</td></tr>`).join(''); return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:6px 0 8px"><button class="vbtn" data-act="make-active" title="Use this as default target for auto-log">Set Active</button><button class="vbtn" data-act="add-test">Add test</button></div><div class="vtable-wrap"><table class="vtable"><thead><tr><th>When</th><th>Original name</th><th style="text-align:right">Size</th><th>Output</th><th>KDF</th><th>Notes</th></tr></thead><tbody>${tr||''}</tbody></table></div>${rows.length?'':`<div class="hint" style="margin-top:6px">No entries yet. Encrypt something — it will appear here if this vault is active.</div>`}`; }
+  function render(){ const idx=readIndex().sort((a,b)=>(b.updated||b.created)-(a.updated||a.created)); listEl.innerHTML=''; if(!idx.length){ listEl.innerHTML=`<div class="hint">No vaults yet. Create your first vault above.</div>`; return; }
+    const activeId=sessionStorage.getItem(ACTIVE_KEY); noticeEl.textContent=unlocked.size?`Active vault: ${activeId?(idx.find(v=>v.id===activeId)?.name||'Unknown'):'—'}`:'No vault unlocked. Create or unlock to start auto-logging.';
+    for(const v of idx){ const row=document.createElement('div'); row.className='vrow'; row.setAttribute('data-id',v.id); row.setAttribute('aria-expanded','false'); const isUnlocked=unlocked.has(v.id); const count=v.count||0; const updated=new Date(v.updated||v.created).toLocaleString();
+      row.innerHTML=`<div class="vrow-head"><div><div class="vname">${escapeHtml(v.name)}</div><div class="vmeta">Created ${new Date(v.created).toLocaleString()} • Updated ${updated} • ${count} item${count===1?'':'s'}</div></div><div class="vmeta ${isUnlocked?'':'warn'}" style="justify-self:end">${isUnlocked?'Unlocked':'Locked'}</div><div class="vrow-actions">${isUnlocked?`<button class="vbtn" data-act="lock">Lock</button><button class="vbtn" data-act="export">Export CSV</button><button class="vbtn" data-act="clear">Clear</button>`:`<input type="password" class="vinput" data-act="pass" placeholder="App Lock passcode" style="max-width:220px"><button class="vbtn primary" data-act="unlock">Unlock</button>`}<button class="vbtn" data-act="rename">Rename</button><button class="vbtn" data-act="delete">Delete</button><button class="vcollapse" data-act="toggle">${isUnlocked?'Collapse':'Expand'}</button></div></div><div class="vrow-body">${isUnlocked?tableHtml(v.id, unlocked.get(v.id).data):`<div class="hint">Unlock to view entries.</div>`}</div>`;
+      row.addEventListener('click', async (e)=>{ const act=e.target?.getAttribute?.('data-act'); if(!act) return; const id=v.id;
+        if(act==='toggle'){ const ex=row.getAttribute('aria-expanded')==='true'; row.setAttribute('aria-expanded',String(!ex)); if(!ex&&unlocked.has(id)) row.querySelector('.vrow-body').innerHTML=tableHtml(id,unlocked.get(id).data); }
+        if(act==='unlock'){ const pass=row.querySelector('[data-act="pass"]').value||''; const raw=readVaultRaw(id); if(!raw||!raw.salt){ alert('Vault is missing or corrupt.'); return; } try{ const base=await crypto.subtle.importKey('raw',enc.encode(pass),{name:'PBKDF2'},false,['deriveKey']); const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:Uint8Array.from(atob(raw.salt),c=>c.charCodeAt(0)),iterations:150000,hash:'SHA-256'}, base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); const data=raw.iv&&raw.data? await (async()=>{ const iv=Uint8Array.from(atob(raw.iv),c=>c.charCodeAt(0)); const ct=Uint8Array.from(atob(raw.data),c=>c.charCodeAt(0)); const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct); return JSON.parse(dec.decode(new Uint8Array(pt))); })():[]; unlocked.set(id,{key,data}); sessionStorage.setItem(ACTIVE_KEY,id); row.setAttribute('aria-expanded','true'); render(); }catch(err){ alert('Incorrect passcode or corrupt vault.'); } }
+        if(act==='lock'){ unlocked.delete(id); if(sessionStorage.getItem(ACTIVE_KEY)===id) sessionStorage.removeItem(ACTIVE_KEY); render(); }
+        if(act==='export'){ const d=unlocked.get(id)?.data||[]; if(!d.length){ alert('Nothing to export.'); return; } const header=['when_iso','original_name','size_bytes','output_name','kdf','notes']; const rows=d.map(r=>[new Date(r.when||Date.now()).toISOString(), r.originalName||'', r.size||0, r.outputName||'', r.kdf||'', (r.notes||'').replace(/\n/g,' ')]); const csv=[header.join(','), ...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`vault_${id}.csv`; a.click(); URL.revokeObjectURL(a.href); }
+        if(act==='clear'){ if(!confirm('Clear all entries in this vault?')) return; const rec=unlocked.get(id); if(!rec) return alert('Unlock first.'); rec.data=[]; await (async()=>{ const encd=await (async()=>{ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},rec.key,enc.encode(JSON.stringify(rec.data))); return {iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), ts:now()}; })(); const raw=readVaultRaw(id); writeVaultRaw(id,{v:1, iv:encd.iv, data:encd.data, salt:raw.salt, ts:now()}); const idx=readIndex(); const meta=idx.find(x=>x.id===id); if(meta){ meta.updated=now(); meta.count=0; writeIndex(idx); } })(); render(); }
+        if(act==='delete'){ if(!confirm(`Delete vault “${v.name}”? This cannot be undone.`)) return; localStorage.removeItem(VAULT_PREFIX+id); writeIndex(readIndex().filter(x=>x.id!==id)); unlocked.delete(id); if(sessionStorage.getItem(ACTIVE_KEY)===id) sessionStorage.removeItem(ACTIVE_KEY); render(); }
+        if(act==='rename'){ const name=prompt('New name:', v.name); if(!name) return; const idx=readIndex(); const meta=idx.find(x=>x.id===id); if(!meta) return; meta.name=name; meta.updated=now(); writeIndex(idx); render(); }
+        if(act==='make-active'){ if(!unlocked.has(id)){ alert('Unlock this vault first.'); return; } sessionStorage.setItem(ACTIVE_KEY,id); noticeEl.textContent=`Active vault: ${v.name}`; }
+        if(act==='add-test'){ const rec=unlocked.get(id); if(!rec){ alert('Unlock first.'); return; } rec.data.push({originalName:'secret.pdf', outputName:'blackout_demo.png', size:1234567, kdf:'PBKDF2 — Standard', notes:'Cover used', when:now()}); const encd=await (async()=>{ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},rec.key,enc.encode(JSON.stringify(rec.data))); return {iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), ts:now()}; })(); const raw=readVaultRaw(id); writeVaultRaw(id,{v:1, iv:encd.iv, data:encd.data, salt:raw.salt, ts:now()}); const idx=readIndex(); const meta=idx.find(x=>x.id===id); if(meta){ meta.updated=now(); meta.count=rec.data.length; writeIndex(idx);} render(); }
+      });
       listEl.appendChild(row);
     }
   }
-
-  function tableHtml(id, arr){
-    const rows = [...arr].sort((a,b)=>(b.when||0)-(a.when||0));
-    const tr = rows.map(r=>`
-      <tr>
-        <td>${new Date(r.when||Date.now()).toLocaleString()}</td>
-        <td>${escapeHtml(r.originalName||'-')}</td>
-        <td style="text-align:right">${fmt(r.size||0)}</td>
-        <td>${escapeHtml(r.outputName||'-')}</td>
-        <td>${escapeHtml(r.kdf||'-')}</td>
-        <td>${escapeHtml(r.notes||'')}</td>
-      </tr>`).join('');
-    return `
-      <div style="display:flex; gap:8px; justify-content:flex-end; margin:6px 0 8px">
-        <button class="vbtn" data-act="make-active" title="Use this as default target for auto-log">Set Active</button>
-        <button class="vbtn" data-act="add-test">Add test</button>
-      </div>
-      <div class="vtable-wrap">
-        <table class="vtable">
-          <thead>
-            <tr><th>When</th><th>Original name</th><th style="text-align:right">Size</th><th>Output</th><th>KDF</th><th>Notes</th></tr>
-          </thead>
-          <tbody>${tr||''}</tbody>
-        </table>
-      </div>
-      ${rows.length? '' : `<div class="hint" style="margin-top:6px">No entries yet. Encrypt something — it will appear here if this vault is active.</div>`}
-    `;
-  }
-
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-
-  // ---------- row actions ----------
-  function attachRowHandlers(row, meta){
-    row.addEventListener('click', async (e)=>{
-      const act = e.target?.getAttribute?.('data-act');
-      if (!act) return;
-      const id = meta.id;
-
-      if (act==='toggle'){
-        const ex = row.getAttribute('aria-expanded')==='true';
-        row.setAttribute('aria-expanded', String(!ex));
-        if (!ex && unlocked.has(id)){
-          row.querySelector('.vrow-body').innerHTML = tableHtml(id, unlocked.get(id).data);
-        }
-      }
-
-      if (act==='unlock'){
-        const pass = row.querySelector('[data-act="pass"]').value || '';
-        const raw = readVaultRaw(id);
-        if (!raw || !raw.salt){ alert('Vault is missing or corrupt.'); return; }
-        try{
-          const key = await deriveKey(pass, b64d(raw.salt));
-          const data = raw.iv && raw.data ? await decryptArr(key, raw.iv, raw.data) : [];
-          unlocked.set(id, {key, data});
-          sessionStorage.setItem(ACTIVE_KEY, id);
-          row.setAttribute('aria-expanded','true');
-          render();
-        }catch(err){
-          alert('Incorrect passcode or corrupt vault.');
-        }
-      }
-
-      if (act==='lock'){
-        unlocked.delete(id);
-        if (sessionStorage.getItem(ACTIVE_KEY)===id) sessionStorage.removeItem(ACTIVE_KEY);
-        render();
-      }
-
-      if (act==='export'){
-        const d = unlocked.get(id)?.data || [];
-        if (!d.length){ alert('Nothing to export.'); return; }
-        const header=['when_iso','original_name','size_bytes','output_name','kdf','notes'];
-        const rows = d.map(r=>[
-          new Date(r.when||Date.now()).toISOString(),
-          r.originalName||'', r.size||0, r.outputName||'', r.kdf||'', (r.notes||'').replace(/\n/g,' ')
-        ]);
-        const csv = [header.join(','), ...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
-        const blob = new Blob([csv], {type:'text/csv'});
-        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`vault_${id}.csv`; a.click(); URL.revokeObjectURL(a.href);
-      }
-
-      if (act==='clear'){
-        if (!confirm('Clear all entries in this vault?')) return;
-        const rec = unlocked.get(id); if (!rec) return alert('Unlock first.');
-        rec.data = []; await persist(id, rec); render();
-      }
-
-      if (act==='delete'){
-        if (!confirm(`Delete vault “${meta.name}”? This cannot be undone.`)) return;
-        localStorage.removeItem(VAULT_PREFIX+id);
-        writeIndex(readIndex().filter(x=>x.id!==id));
-        unlocked.delete(id);
-        if (sessionStorage.getItem(ACTIVE_KEY)===id) sessionStorage.removeItem(ACTIVE_KEY);
-        render();
-      }
-
-      if (act==='rename'){
-        const name = prompt('New name:', meta.name);
-        if (!name) return;
-        const idx = readIndex(); const v = idx.find(x=>x.id===id); if (!v) return;
-        v.name = name; v.updated = now(); writeIndex(idx); render();
-      }
-
-      if (act==='make-active'){
-        if (!unlocked.has(id)){ alert('Unlock this vault first.'); return; }
-        sessionStorage.setItem(ACTIVE_KEY, id);
-        noticeEl.textContent = `Active vault: ${meta.name}`;
-      }
-
-      if (act==='add-test'){
-        await addEntry(id, {
-          originalName:'secret.pdf', outputName:'blackout_demo.png',
-          size: 1234567, kdf:'PBKDF2 — Standard', notes:'Cover used', when: now()
-        });
-        render();
-      }
-    });
-  }
-
-  // ---------- create / persist ----------
-  $('#createVaultBtn').addEventListener('click', async ()=>{
-    const name = ($('#newVaultName').value || 'Vault '+new Date().toLocaleDateString()).trim();
-    if (!name) return;
-    const pass = prompt('Enter your App Lock passcode to create this vault:') || '';
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const key = await deriveKey(pass, salt);
-    const id = uid(); const created = now();
-    const empty = await encryptArr(key, []);
-    writeVaultRaw(id, {v:1, iv: empty.iv, data: empty.data, salt: b64e(salt), ts: created});
-    const idx = readIndex(); idx.push({id, name, created, updated: created, count:0}); writeIndex(idx);
-    unlocked.set(id, {key, data:[]}); sessionStorage.setItem(ACTIVE_KEY, id);
-    $('#newVaultName').value = '';
-    render();
+  document.getElementById('createVaultBtn').addEventListener('click', async ()=>{
+    const name=(document.getElementById('newVaultName').value || 'Vault '+new Date().toLocaleDateString()).trim(); if(!name) return;
+    const pass=prompt('Enter your App Lock passcode to create this vault:')||''; const salt=crypto.getRandomValues(new Uint8Array(16));
+    const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),{name:'PBKDF2'},false,['deriveKey']);
+    const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'}, base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+    const id=Math.random().toString(36).slice(2)+Date.now().toString(36); const created=now();
+    const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify([])));
+    writeVaultRaw(id,{v:1, iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), salt:btoa(String.fromCharCode(...salt)), ts:created});
+    const idx=readIndex(); idx.push({id,name,created,updated:created,count:0}); writeIndex(idx);
+    unlocked.set(id,{key,data:[]}); sessionStorage.setItem(ACTIVE_KEY,id);
+    document.getElementById('newVaultName').value=''; render();
   });
-
-  async function persist(id, rec){
-    const raw = readVaultRaw(id); if (!raw) return;
-    const encd = await encryptArr(rec.key, rec.data);
-    writeVaultRaw(id, {v:1, iv: encd.iv, data: encd.data, salt: raw.salt, ts: now()});
-    const idx = readIndex(); const meta = idx.find(x=>x.id===id);
-    if (meta){ meta.updated = now(); meta.count = rec.data.length; writeIndex(idx); }
-  }
-
-  async function addEntry(id, entry){
-    const rec = unlocked.get(id);
-    if (!rec){ alert('Unlock a vault first (or set one as active).'); return; }
-    rec.data.push(Object.assign({when: now(), notes:''}, entry||{}));
-    await persist(id, rec);
-  }
-
-  // ---------- public “auto-log” API ----------
   window.blackoutLogEncryption = async function(entry){
     try{
-      const active = sessionStorage.getItem(ACTIVE_KEY);
-      if (!active || !unlocked.has(active)){
-        noticeEl.classList.add('warn');
-        noticeEl.textContent = 'No active vault unlocked. Unlock a vault and click “Set Active” to enable auto-logging.';
-        return;
-      }
-      await addEntry(active, entry);
-      noticeEl.classList.remove('warn');
-      noticeEl.textContent = 'Logged to active vault.';
-      render();
+      const active=sessionStorage.getItem(ACTIVE_KEY);
+      if(!active || !unlocked.has(active)){ noticeEl.classList.add('warn'); noticeEl.textContent='No active vault unlocked. Unlock a vault and click “Set Active” to enable auto-logging.'; return; }
+      const rec=unlocked.get(active); rec.data.push(Object.assign({when:Date.now(),notes:''},entry||{}));
+      const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},rec.key,new TextEncoder().encode(JSON.stringify(rec.data)));
+      const raw=readVaultRaw(active); writeVaultRaw(active,{v:1, iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), salt:raw.salt, ts:Date.now()});
+      const idx=readIndex(); const meta=idx.find(x=>x.id===active); if(meta){ meta.updated=Date.now(); meta.count=rec.data.length; writeIndex(idx); }
+      noticeEl.classList.remove('warn'); noticeEl.textContent='Logged to active vault.'; render();
     }catch(e){ console.error('[Vaults] log failed', e); }
   };
-
   render();
 })();
 </script>
