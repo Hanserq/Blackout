@@ -385,30 +385,67 @@ try {
     else kdfHint.textContent='PBKDF2 is most compatible; Argon2id is stronger on desktops.';
   });
 
-  btnEnc.onclick = async ()=>{
-    const f=encFile.files[0], p=encPass.value, mode=kdfSelect.value;
-    if(!f) return log(encLog,'Pick a file.','err');
-    if(!p || p.length<6) return log(encLog,'Use a stronger passphrase (6+).','err');
-    if(mode.startsWith('argon2id') && !ARGON_READY) return log(encLog,'Argon2 engine missing. Include argon2.min.js & argon2.wasm at project root, then reload.', 'err');
-    btnEnc.disabled=true; log(encLog,'Encrypting…');
-    try{
-      let coverBytes=null;
-      if (encCover && encCover.files && encCover.files[0]) {
-        log(encLog,'Encrypting…\nPreparing cover image…');
-        coverBytes = await imageFileToPngBytes(encCover.files[0]);
-      }
-      const blob = await encryptBlob(f, p, encStoredName.value, mode, coverBytes);
-      const outName = window.computeSafeOutputName(($('enc-png-name')?.value || '').trim(), 'png');
+btnEnc.onclick = async () => {
+  const f    = encFile.files[0];
+  const p    = encPass.value;
+  const mode = kdfSelect.value;
 
-      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=outName; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),8000);
-      log(encLog,'Done → '+outName,'ok');
+  if (!f) return log(encLog, 'Pick a file.', 'err');
+  if (!p || p.length < 6) {
+    return log(encLog, 'Use a stronger passphrase (6+ characters).', 'err');
+  }
 
-      const kdfLabel = window.getSelectedKdfLabel();
-      const notes = window.isCoverUsed() ? 'Cover used' : '';
-      window.blackoutLogEncryption?.({ originalName: f?.name || '(unknown)', outputName: outName, size: f?.size || 0, kdf: kdfLabel, notes });
-    }catch(e){ log(encLog, e?.message || String(e), 'err'); }
-    finally{ btnEnc.disabled=false; }
-  };
+  if (mode.startsWith('argon2id') && !ARGON_READY) {
+    return log(
+      encLog,
+      'Argon2 engine missing. Ensure argon2.min.js (bundled) is in the project root, then reload.',
+      'err'
+    );
+  }
+
+  btnEnc.disabled = true;
+  log(encLog, 'Encrypting…');
+
+  try {
+    let coverBytes = null;
+    if (encCover && encCover.files && encCover.files[0]) {
+      log(encLog, 'Encrypting…\nPreparing cover image…');
+      coverBytes = await imageFileToPngBytes(encCover.files[0]);
+    }
+
+    const blob    = await encryptBlob(f, p, encStoredName.value, mode, coverBytes);
+    const outName = window.computeSafeOutputName(($('enc-png-name')?.value || '').trim(), 'png');
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = outName;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+    log(encLog, 'Done → ' + outName, 'ok');
+
+    // Log to active vault
+    const kdfLabel = window.getSelectedKdfLabel();
+    const notes    = window.isCoverUsed() ? 'Cover used' : '';
+    window.blackoutLogEncryption?.({
+      originalName: f?.name || '(unknown)',
+      outputName: outName,
+      size: f?.size || 0,
+      kdf: kdfLabel,
+      notes
+    });
+
+    // Optional: reset cover picker label after success
+    if (encCover) {
+      encCover.value = '';
+      const txt = document.querySelector('#coverPicker .upload-text');
+      if (txt) txt.textContent = 'Choose cover image';
+    }
+  } catch (e) {
+    log(encLog, e?.message || String(e), 'err');
+  } finally {
+    btnEnc.disabled = false;
+  }
+};
 
   btnDec.onclick = async ()=>{
     const f=decFile.files[0], p=decPass.value;
