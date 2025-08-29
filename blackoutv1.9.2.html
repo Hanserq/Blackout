@@ -1,4 +1,4 @@
-<!--- blackoutv1.9.2.html (with Argon2id support) --->
+<!--- blackoutv1.9.2.html (with Argon2id + Vaults + Help + Particles) --->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,18 +6,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Blackout — Encrypt / Decrypt</title>
 
+<!-- Security headers -->
 <meta http-equiv="Content-Security-Policy"
-        content="
-          default-src 'self';
-          script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval';
-          style-src 'self' 'unsafe-inline';
-          img-src 'self' blob: data:;
-          worker-src 'self' blob:;
-          connect-src 'self';
-          object-src 'none';
-          base-uri 'none';
-          frame-ancestors 'none';
-        ">
+      content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' blob: data:;
+        worker-src 'self' blob:;
+        connect-src 'self';
+        object-src 'none';
+        base-uri 'none';
+        frame-ancestors 'none';
+      ">
 
 <!-- Guard: only allow if unlocked in last 30 minutes -->
 <script>(function(){const MAX_AGE=30*60*1000;const ts=Number(sessionStorage.getItem('blackout.unlockedAt')||0);const hasLock=!!localStorage.getItem('blackout.lock.hash');if(hasLock&&(!ts||Date.now()-ts>MAX_AGE)) location.replace('index.html');})();</script>
@@ -27,11 +28,24 @@
          --card:#121420; --stroke:#23263a; --hover:#1a1d2c; --radius:18px; }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  .wrap{max-width:1080px;margin:28px auto;padding:0 18px}
+  /* Ensure content stacks over background */
+  body { position: relative; z-index: 0; }
+  .wrap{max-width:1080px;margin:28px auto;padding:0 18px; position:relative; z-index: 2;}
   h1{margin:0 0 8px;font-size:clamp(24px,3.6vw,36px);letter-spacing:-.02em}
   .sub{color:var(--muted);margin:0 0 18px;font-size:clamp(13px,1.9vw,15px)}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   .card{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:16px;box-shadow:0 10px 28px rgba(0,0,0,.35)}
+
+  /* Transparent cards only when particles are enabled */
+  body.particles-on .card{
+  background: rgba(18,20,32,0.65);      /* ~35% see-through */
+  border-color: rgba(35,38,58,0.40);    /* soften the stroke */
+  backdrop-filter: blur(6px);           /* optional glassy feel */
+  }
+  /* (optional) Soften a few inner surfaces too */
+  body.particles-on .log{ background: rgba(13,17,34,0.65); }
+  body.particles-on .drop{ background: rgba(14,16,32,0.40); }
+
   .card h3{margin:0 0 10px;font-size:18px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
   .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
@@ -51,17 +65,16 @@
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .cover-picker{display:inline-flex;align-items:center;gap:10px;border:1.5px dashed #2d3350;border-radius:12px;padding:10px 12px;background:#0e1020;cursor:pointer;user-select:none}
   .cover-picker .upload-text{font-size:.9rem;color:var(--muted)} .cover-picker.active{outline:2px dashed var(--accent)}
-</style>
 
-<!-- Argon2 runtime (worker + config). The worker loads argon2.min.js + argon2.wasm locally -->
-<script defer src="argon2.config.js"></script>
-<script defer src="argon2.worker.js"></script>
-
-<style>
   /* Help button */
   .help-btn{position:fixed;top:14px;right:16px;z-index:60;background:#222842;border:1px solid #2f3350;
     color:#e9ebf2;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer}
   .help-btn:hover{background:#2a2f4a}
+
+  /* Particles toggle (near Help) */
+  .particles-toggle{position:fixed;top:14px;right:120px;z-index:60;background:#222842;border:1px solid #2f3350;
+    color:#e9ebf2;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .particles-toggle:hover{background:#2a2f4a}
 
   /* Help modal */
   .help-overlay{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:none}
@@ -82,24 +95,45 @@
   .dot.active{background:#8ba7ff}
   .help-body p{margin:0 0 8px;color:#cdd2ea}
   .help-body ul{margin:8px 0 0 18px;color:#cdd2ea}
+
+  /* Vaults */
+  .vaults-card{width:min(1080px,94vw);margin:24px auto 60px;background:#121420;color:#e9ebf2;border:1px solid #23263a;border-radius:18px;box-shadow:0 16px 48px rgba(0,0,0,.45);}
+  .vaults-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #23263a}
+  .vaults-title{font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .vaults-body{padding:14px 18px;display:grid;gap:16px}
+  .vaults-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .vbtn{background:#222842;color:#e9ebf2;border:1px solid #2f3350;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .vbtn.primary{background:#8ba7ff;color:#0b0f1c;border-color:#8ba7ff}
+  .vinput{width:100%;max-width:360px;padding:10px 12px;border-radius:10px;border:1px solid #2d3350;background:#0b0f1c;color:#e9ebf2}
+  .vlist{display:grid;gap:10px}
+  .vrow{border:1px solid #23263a;border-radius:12px;padding:10px 12px;background:#0f1320}
+  .vrow-head{display:grid;grid-template-columns:1fr auto auto auto auto;gap:12px;align-items:center}
+  .vname{font-weight:800}.vmeta{color:#a6acc3;font-size:12px}.vrow-actions{display:flex;gap:8px;justify-content:flex-end}
+  .vcollapse{background:#222842;border:0;color:#e9ebf2;border-radius:10px;padding:6px 10px;cursor:pointer}
+  .vrow-body{margin-top:10px;display:none}.vrow[aria-expanded="true"] .vrow-body{display:block}
+  .vtable-wrap{overflow:auto;max-height:40vh;border:1px solid #23263a;border-radius:12px;padding:8px}
+  .vtable{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:14px}.vtable th{text-align:left;color:#a6acc3;font-weight:600}.vtable td{vertical-align:top}
+  .hint{color:#a6acc3;font-size:12px}.warn{color:#f39c9c;font-size:12px}
+
+  /* Particles host sits behind everything */
+  #particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
 </style>
 
-
+<!-- Argon2 runtime (worker + config). The worker loads argon2.min.js + argon2.wasm locally -->
+<script defer src="argon2.config.js"></script>
+<script defer src="argon2.worker.js"></script>
 </head>
 <body>
+
+<!-- Particles toggle + host -->
+<button id="particlesToggle" class="particles-toggle" type="button" aria-pressed="false">Particles: Off</button>
+<div id="particles" aria-hidden="true"></div>
 
 <!-- Help trigger -->
 <button id="helpBtn" class="help-btn" type="button" aria-haspopup="dialog" aria-controls="helpModal">Help</button>
 
 <!-- Help / Tutorial modal -->
-<div id="helpModal"
-     class="help-overlay"
-     role="dialog"
-     aria-modal="true"
-     aria-hidden="true"
-     aria-labelledby="helpTitle"
-     tabindex="-1">
-
+<div id="helpModal" class="help-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="helpTitle">
   <div class="help-card" role="document">
     <div class="help-head">
       <div id="helpTitle" class="help-title">Blackout — Quick Tutorial</div>
@@ -165,7 +199,6 @@
     <div class="dots" id="helpDots" aria-hidden="true"></div>
   </div>
 </div>
-
 
 <div class="wrap">
   <h1>Blackout v2</h1>
@@ -267,13 +300,12 @@ let ARGON_READY=false;
 let argonWorker=null;
 window.addEventListener('argon2-ready', ()=>{ ARGON_READY=true; });
 function isMobile(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
-function deviceMemGiB(){ return (navigator.deviceMemory||0); } // Chromium only
+function deviceMemGiB(){ return (navigator.deviceMemory||0); }
 
 async function argon2Derive(passUtf8, salt, mode){
   if (!ARGON_READY) throw new Error('Argon2 engine not available');
   return new Promise((resolve, reject) => {
     const id = Math.random().toString(36).slice(2);
-
     const onMsg = (e) => {
       const d = e.data || {};
       if (d.id !== id) return;
@@ -283,13 +315,13 @@ async function argon2Derive(passUtf8, salt, mode){
     };
     argonWorker.addEventListener('message', onMsg);
 
-    // Keep original salt for container header
+    // Keep original salt on main thread; transfer only pass bytes
     const passBuf  = passUtf8 instanceof Uint8Array ? passUtf8 : new Uint8Array(passUtf8);
     const saltCopy = (salt instanceof Uint8Array ? salt : new Uint8Array(salt)).slice();
 
     argonWorker.postMessage(
-      { type: 'derive', id, pass: passBuf, salt: saltCopy, mode, caps:{ mobile:isMobile(), memGiB:deviceMemGiB() } },
-      [passBuf.buffer]  // transfer only passphrase
+      { type:'derive', id, pass: passBuf, salt: saltCopy, mode, caps:{ mobile:isMobile(), memGiB:deviceMemGiB() } },
+      [passBuf.buffer]
     );
   });
 }
@@ -301,10 +333,9 @@ async function kdf_pbkdf2(pass,salt,iters){
 }
 async function deriveAesKey(pass,salt,mode){
   if(mode.startsWith('argon2id')){
-    const raw = await argon2Derive(TE.encode(pass), salt, mode); // Uint8Array(32)
+    const raw = await argon2Derive(TE.encode(pass), salt, mode);
     return crypto.subtle.importKey('raw', raw, {name:'AES-GCM'}, false, ['encrypt','decrypt']);
   }
-  // PBKDF2 modes
   const isMob = isMobile();
   const iters = mode==='pbkdf2_strong' ? (isMob?400000:1000000) : 250000;
   return kdf_pbkdf2(pass, salt, iters);
@@ -327,17 +358,7 @@ async function makeBlackPNG(){
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-/* ---------- container v2 (versioned) ----------
-
-Old v1 (back-compat):
-  body = [marker(16)] [salt(16)] [nonce(12)] [ct(?)]
-
-New v2:
-  body = [marker(16)] [version(1)=1] [kdfCode(1)] [salt(16)] [nonce(12)] [ct(?)]
-  kdfCode:
-    0=pbkdf2_std, 1=pbkdf2_strong,
-    2=argon2id_interactive, 3=argon2id_balanced, 4=argon2id_high
-------------------------------------------------*/
+/* ---------- container v2 (versioned) ---------- */
 const KDF_CODE = {
   'pbkdf2_std':0, 'pbkdf2_strong':1,
   'argon2id_interactive':2, 'argon2id_balanced':3, 'argon2id_high':4
@@ -345,7 +366,7 @@ const KDF_CODE = {
 const CODE_KDF = Object.fromEntries(Object.entries(KDF_CODE).map(([k,v])=>[v,k]));
 
 async function encryptBlob(file, pass, storedName, kdfMode, coverPngBytes){
-  const MAX_BYTES = 100 * 1024 * 1024;
+  const MAX_BYTES = 100 * 1024 * 1024; // adjust if you want a higher cap
   if (file.size > MAX_BYTES) throw new Error('File exceeds 100 MB cap.');
   const fileBytes = new Uint8Array(await file.arrayBuffer());
   const pick = (storedName && storedName.trim()) ? storedName.trim() : (file.name || 'file.bin');
@@ -390,15 +411,13 @@ async function decryptPNG(pngFile, pass){
   for(let i=0;i<16;i++){ if(body[i]!==markerFooter[i]) throw new Error('Not a Blackout container (marker).'); }
 
   let kdfMode='pbkdf2_std', salt, nonce, ct, version=0;
-  // Try v2
   if (body.length>=16+1+1+16+12 && body[16]===1){
     version=1;
     const kdfCode=body[17]; kdfMode=CODE_KDF[kdfCode]||'pbkdf2_std';
     salt = body.slice(18, 34);
     nonce= body.slice(34, 46);
     ct   = body.slice(46);
-  } else {
-    // v1 fallback
+  } else { // v1 fallback
     salt = body.slice(16, 32);
     nonce= body.slice(32, 44);
     ct   = body.slice(44);
@@ -419,10 +438,8 @@ async function decryptPNG(pngFile, pass){
   }
 
   if (version===1){
-    // Exact KDF mode known
     return tryDecrypt(kdfMode);
   } else {
-    // Old file: try PBKDF2 modes
     for (const mode of ['pbkdf2_strong','pbkdf2_std']){
       try{ return await tryDecrypt(mode); }catch(_){}
     }
@@ -431,7 +448,7 @@ async function decryptPNG(pngFile, pass){
 }
 </script>
 
-<!-- --- Privacy-safe filename helpers (unchanged) --- -->
+<!-- Output name helpers -->
 <script>
 (function(){
   function pick(){ for(const s of arguments){ const el=document.querySelector(s); if(el) return el; } return null; }
@@ -448,7 +465,7 @@ async function decryptPNG(pngFile, pass){
 })();
 </script>
 
-<!-- --- UI wiring + drag/drop + Argon2 worker boot --- -->
+<!-- UI wiring + drag/drop + Argon2 worker boot -->
 <script>
 (function(){
   const encFile=$('enc-file'), encPass=$('enc-pass'), encLog=$('enc-log'), btnEnc=$('btn-enc'), btnClearEnc=$('btn-clear-enc');
@@ -457,21 +474,18 @@ async function decryptPNG(pngFile, pass){
   const encCover=document.getElementById('coverImage'); const encDrop=$('enc-drop'), decDrop=$('dec-drop'); const encDropLabel=$('enc-drop-label'), decDropLabel=$('dec-drop-label');
   const kdfHint = document.getElementById('kdfHint');
 
-// Boot Argon2 worker (if available)
-try {
-  argonWorker = new Worker('argon2.worker.js');
-  argonWorker.addEventListener('message', (e) => {
-    if (e && e.data && e.data.type === 'ready') {
-      ARGON_READY = true;
-      console.debug('Argon2 worker ready');
-    } else if (e && e.data && e.data.type === 'error') {
-      console.debug('Argon2 worker init error:', e.data.error);
-    }
-  });
-  argonWorker.postMessage({ type: 'ping' });
-} catch (e) {
-  console.debug('Argon2 worker unavailable', e);
-}
+  // Boot Argon2 worker (if available)
+  try {
+    argonWorker = new Worker('argon2.worker.js');
+    argonWorker.addEventListener('message', (e) => {
+      if (e && e.data && e.data.type === 'ready') {
+        ARGON_READY = true;
+      }
+    });
+    argonWorker.postMessage({ type: 'ping' });
+  } catch (e) {
+    console.debug('Argon2 worker unavailable', e);
+  }
 
   // Prevent nav on drop
   ['dragover','drop'].forEach(t=>{ addEventListener(t,e=>e.preventDefault(),true); document.addEventListener(t,e=>e.preventDefault(),true); });
@@ -503,67 +517,61 @@ try {
     else kdfHint.textContent='PBKDF2 is most compatible; Argon2id is stronger on desktops.';
   });
 
-btnEnc.onclick = async () => {
-  const f    = encFile.files[0];
-  const p    = encPass.value;
-  const mode = kdfSelect.value;
+  btnEnc.onclick = async () => {
+    const f    = encFile.files[0];
+    const p    = encPass.value;
+    const mode = kdfSelect.value;
 
-  if (!f) return log(encLog, 'Pick a file.', 'err');
-  if (!p || p.length < 6) {
-    return log(encLog, 'Use a stronger passphrase (6+ characters).', 'err');
-  }
+    if (!f) return log(encLog, 'Pick a file.', 'err');
+    if (!p || p.length < 6) return log(encLog, 'Use a stronger passphrase (6+ characters).', 'err');
 
-  if (mode.startsWith('argon2id') && !ARGON_READY) {
-    return log(
-      encLog,
-      'Argon2 engine missing. Ensure argon2.min.js (bundled) is in the project root, then reload.',
-      'err'
-    );
-  }
-
-  btnEnc.disabled = true;
-  log(encLog, 'Encrypting…');
-
-  try {
-    let coverBytes = null;
-    if (encCover && encCover.files && encCover.files[0]) {
-      log(encLog, 'Encrypting…\nPreparing cover image…');
-      coverBytes = await imageFileToPngBytes(encCover.files[0]);
+    if (mode.startsWith('argon2id') && !ARGON_READY) {
+      return log(encLog, 'Argon2 engine missing. Ensure argon2.min.js (bundled) is in the project root, then reload.', 'err');
     }
 
-    const blob    = await encryptBlob(f, p, encStoredName.value, mode, coverBytes);
-    const outName = window.computeSafeOutputName(($('enc-png-name')?.value || '').trim(), 'png');
+    btnEnc.disabled = true;
+    log(encLog, 'Encrypting…');
 
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = outName;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 8000);
-    log(encLog, 'Done → ' + outName, 'ok');
+    try {
+      let coverBytes = null;
+      if (encCover && encCover.files && encCover.files[0]) {
+        log(encLog, 'Encrypting…\nPreparing cover image…');
+        coverBytes = await imageFileToPngBytes(encCover.files[0]);
+      }
 
-    // Log to active vault
-    const kdfLabel = window.getSelectedKdfLabel();
-    const notes    = window.isCoverUsed() ? 'Cover used' : '';
-    window.blackoutLogEncryption?.({
-      originalName: f?.name || '(unknown)',
-      outputName: outName,
-      size: f?.size || 0,
-      kdf: kdfLabel,
-      notes
-    });
+      const blob    = await encryptBlob(f, p, encStoredName.value, mode, coverBytes);
+      const outName = window.computeSafeOutputName(($('enc-png-name')?.value || '').trim(), 'png');
 
-    // Optional: reset cover picker label after success
-    if (encCover) {
-      encCover.value = '';
-      const txt = document.querySelector('#coverPicker .upload-text');
-      if (txt) txt.textContent = 'Choose cover image';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = outName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+      log(encLog, 'Done → ' + outName, 'ok');
+
+      // Log to active vault
+      const kdfLabel = window.getSelectedKdfLabel();
+      const notes    = window.isCoverUsed() ? 'Cover used' : '';
+      window.blackoutLogEncryption?.({
+        originalName: f?.name || '(unknown)',
+        outputName: outName,
+        size: f?.size || 0,
+        kdf: kdfLabel,
+        notes
+      });
+
+      // reset cover picker label after success
+      if (encCover) {
+        encCover.value = '';
+        const txt = document.querySelector('#coverPicker .upload-text');
+        if (txt) txt.textContent = 'Choose cover image';
+      }
+    } catch (e) {
+      log(encLog, e?.message || String(e), 'err');
+    } finally {
+      btnEnc.disabled = false;
     }
-  } catch (e) {
-    log(encLog, e?.message || String(e), 'err');
-  } finally {
-    btnEnc.disabled = false;
-  }
-};
+  };
 
   btnDec.onclick = async ()=>{
     const f=decFile.files[0], p=decPass.value;
@@ -600,27 +608,7 @@ if(coverInput && coverPicker){
 }
 </script>
 
-<!-- Vaults card (unchanged from your latest) -->
-<style>
-  .vaults-card{width:min(1080px,94vw);margin:24px auto 60px;background:#121420;color:#e9ebf2;border:1px solid #23263a;border-radius:18px;box-shadow:0 16px 48px rgba(0,0,0,.45);}
-  .vaults-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #23263a}
-  .vaults-title{font-size:20px;font-weight:800;letter-spacing:-.01em}
-  .vaults-body{padding:14px 18px;display:grid;gap:16px}
-  .vaults-actions{display:flex;gap:10px;flex-wrap:wrap}
-  .vbtn{background:#222842;color:#e9ebf2;border:1px solid #2f3350;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
-  .vbtn.primary{background:#8ba7ff;color:#0b0f1c;border-color:#8ba7ff}
-  .vinput{width:100%;max-width:360px;padding:10px 12px;border-radius:10px;border:1px solid #2d3350;background:#0b0f1c;color:#e9ebf2}
-  .vlist{display:grid;gap:10px}
-  .vrow{border:1px solid #23263a;border-radius:12px;padding:10px 12px;background:#0f1320}
-  .vrow-head{display:grid;grid-template-columns:1fr auto auto auto auto;gap:12px;align-items:center}
-  .vname{font-weight:800}.vmeta{color:#a6acc3;font-size:12px}.vrow-actions{display:flex;gap:8px;justify-content:flex-end}
-  .vcollapse{background:#222842;border:0;color:#e9ebf2;border-radius:10px;padding:6px 10px;cursor:pointer}
-  .vrow-body{margin-top:10px;display:none}.vrow[aria-expanded="true"] .vrow-body{display:block}
-  .vtable-wrap{overflow:auto;max-height:40vh;border:1px solid #23263a;border-radius:12px;padding:8px}
-  .vtable{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:14px}.vtable th{text-align:left;color:#a6acc3;font-weight:600}.vtable td{vertical-align:top}
-  .hint{color:#a6acc3;font-size:12px}.warn{color:#f39c9c;font-size:12px}
-</style>
-
+<!-- Vaults (unchanged from your latest) -->
 <section class="vaults-card" id="vaultsCard" aria-label="Vaults">
   <div class="vaults-head">
     <div class="vaults-title">Vaults</div>
@@ -637,7 +625,7 @@ if(coverInput && coverPicker){
 </section>
 
 <script>
-/* === Vaults (unchanged) === */
+/* === Vaults logic (unchanged) === */
 (function(){
   const IDX_KEY='blackout.vaults.index.v1', VAULT_PREFIX='blackout.vault.v1::', ACTIVE_KEY='blackout.activeVaultId';
   const enc=new TextEncoder(), dec=new TextDecoder(); const $=s=>document.querySelector(s);
@@ -699,8 +687,8 @@ if(coverInput && coverPicker){
 })();
 </script>
 
+<!-- Tutorial modal controller -->
 <script>
-        
 (function(){
   const LS_KEY = 'blackout.tutorial.done.v1';
   const modal = document.getElementById('helpModal');
@@ -714,9 +702,7 @@ if(coverInput && coverPicker){
   const slides = Array.from(slidesWrap.querySelectorAll('.help-slide'));
   let idx = 0;
 
-  function renderDots(){
-    dotsWrap.innerHTML = slides.map((_,i)=>`<span class="dot ${i===idx?'active':''}" aria-hidden="true"></span>`).join('');
-  }
+  function renderDots(){ dotsWrap.innerHTML = slides.map((_,i)=>`<span class="dot ${i===idx?'active':''}" aria-hidden="true"></span>`).join(''); }
   function show(i){
     idx = Math.max(0, Math.min(slides.length-1, i));
     slides.forEach((s,j)=> s.classList.toggle('active', j===idx));
@@ -724,22 +710,16 @@ if(coverInput && coverPicker){
     btnNext.textContent = idx===slides.length-1 ? 'Done' : 'Next';
     renderDots();
   }
-        
   function open(firstRun=false){
     modal.setAttribute('aria-hidden','false');
     modal.style.display = 'grid';
     document.body.style.overflow='hidden';
-
-    // NEW: focus the modal itself first
-    modal.focus({ preventScroll: true });
-
+    // focus modal first, then close button
+    modal.focus({ preventScroll:true });
     if(firstRun) idx = 0;
     show(idx);
-
-    // Then move focus to the Close button
-    btnClose.focus({ preventScroll: true });
+    btnClose.focus({ preventScroll:true });
   }
-
   function close(done=false){
     modal.setAttribute('aria-hidden','true');
     modal.style.display = 'none';
@@ -748,31 +728,163 @@ if(coverInput && coverPicker){
     btnOpen.focus({preventScroll:true});
   }
 
-  // Wire buttons
   btnOpen.addEventListener('click', ()=> open(false));
   btnClose.addEventListener('click', ()=> close(false));
   btnSkip.addEventListener('click', ()=> close(true));
   btnBack.addEventListener('click', ()=> show(idx-1));
   btnNext.addEventListener('click', ()=> { if(idx===slides.length-1) close(true); else show(idx+1); });
 
-  // Keyboard
   modal.addEventListener('keydown', (e)=>{
     if(e.key==='Escape') close(false);
     if(e.key==='ArrowRight') show(idx+1);
     if(e.key==='ArrowLeft') show(idx-1);
   });
-
-  // Click outside to close
   modal.addEventListener('click', (e)=>{ if(e.target===modal) close(false); });
 
-  // First-run: show tutorial (only if app lock allowed entry)
   try {
     const firstRun = !localStorage.getItem(LS_KEY);
     if(firstRun) open(true);
   } catch {}
 
-  // Build dots initially
   renderDots();
+})();
+</script>
+
+<!-- Particles loader: dynamic tuning + toggle + offline -->
+<script>
+(() => {
+  const TOGGLE_ID = 'particlesToggle';
+  const HOST_ID   = 'particles';
+  const LS_KEY    = 'blackout.particles.enabled';
+  const JS_PATH   = 'particles.min.js';
+  const CFG_PATH  = 'particlesjs-config.json';
+
+  const btn  = document.getElementById(TOGGLE_ID);
+  const host = document.getElementById(HOST_ID);
+  if (!btn || !host) return;
+
+  const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isMobileUA     = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const memGiB         = navigator.deviceMemory || 0;
+  const dpr            = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+  function getPref(){ try { return localStorage.getItem(LS_KEY) === '1'; } catch { return false; } }
+  function setPref(v){ try { localStorage.setItem(LS_KEY, v ? '1' : '0'); } catch {} }
+
+  let enabled = getPref() && !prefersReduced;
+  let scriptLoaded = !!window.particlesJS;
+  let starting = false;
+
+  function applyParticlesClass(on){
+  document.body.classList.toggle('particles-on', !!on);
+}
+
+  function setButton() {
+    btn.textContent = 'Particles: ' + (enabled ? 'On' : 'Off');
+    btn.setAttribute('aria-pressed', String(enabled));
+  }
+
+  function tuneConfig(cfg) {
+    const baseCount  = cfg?.particles?.number?.value ?? 120;
+    const baseArea   = cfg?.particles?.number?.density?.value_area ?? 800;
+    const baseSpeed  = cfg?.particles?.move?.speed ?? 1;
+    const baseSize   = cfg?.particles?.size?.value ?? 3;
+
+    const area = Math.max(1, window.innerWidth * window.innerHeight);
+    const areaFactor = Math.sqrt(area / (1920 * 1080));
+    const memTier = memGiB >= 12 ? 3 : memGiB >= 8 ? 2 : memGiB >= 4 ? 1 : 0;
+
+    const isMobile = isMobileUA || area < 750 * 900;
+    const maxCount = isMobile ? 100 : [140, 180, 220, 260][memTier];
+    const maxSpeed = isMobile ? 1.0 : 2.2;
+    const maxSize  = isMobile ? 4.0 : 6.0;
+
+    const densityBased = Math.round((area / Math.max(20000, baseArea * 1.2)) / (dpr * 0.9));
+    let tunedCount = Math.min(maxCount, Math.max(25, Math.max(densityBased, Math.min(baseCount, maxCount))));
+
+    let tunedSpeed = Math.min(maxSpeed, baseSpeed * (isMobile ? 0.5 : 0.9) * (0.85 + 0.25 * areaFactor));
+    let tunedSize  = Math.min(maxSize,  baseSize  * (isMobile ? 0.6 : 0.9));
+
+    cfg.particles ??= {};
+    cfg.particles.number ??= {};
+    cfg.particles.number.value = tunedCount;
+    (cfg.particles.number.density ??= {}).enable = true;
+    (cfg.particles.move ??= {}).enable = true;
+    cfg.particles.move.speed = tunedSpeed;
+    (cfg.particles.size ??= {}).value = tunedSize;
+
+    cfg.interactivity ??= {};
+    cfg.interactivity.events ??= {};
+    if (isMobile) {
+      cfg.interactivity.events.onhover = { enable: false };
+      cfg.interactivity.events.onclick = { enable: false };
+    }
+
+    if (typeof cfg.particles.opacity?.value === 'number') {
+      cfg.particles.opacity.value = Math.min(cfg.particles.opacity.value, 0.45);
+    }
+    return cfg;
+  }
+
+  function destroyParticles() {
+    try {
+      if (window.pJSDom && window.pJSDom.length) {
+        window.pJSDom.forEach(p => p?.pJS?.fn?.vendors?.destroypJS?.());
+        window.pJSDom.length = 0;
+      }
+      host.querySelectorAll('canvas').forEach(c => c.remove());
+    } catch {}
+  }
+
+  async function startParticles() {
+    if (starting || prefersReduced) return;
+    starting = true;
+
+    try {
+      if (!scriptLoaded) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = JS_PATH; s.async = true;
+          s.onload = () => { scriptLoaded = true; res(); };
+          s.onerror = () => rej(new Error('Failed to load particles.min.js'));
+          document.head.appendChild(s);
+        });
+      }
+
+      const resp = await fetch(CFG_PATH, { cache: 'force-cache' });
+      const userCfg = await resp.json();
+      const tuned   = tuneConfig(userCfg);
+
+      destroyParticles();
+      window.particlesJS(HOST_ID, tuned);
+      applyParticlesClass(true);
+    } catch (e) {
+      console.debug('[particles] init failed:', e);
+      enabled = false; setPref(false); setButton();
+    } finally {
+      starting = false;
+    }
+  }
+
+  function stopParticles() {
+    destroyParticles();
+    applyParticlesClass(false);
+  }
+
+  btn.addEventListener('click', () => {
+    enabled = !enabled;
+    setPref(enabled);
+    setButton();
+    applyParticlesClass(enabled);
+    enabled ? startParticles() : stopParticles();
+  });
+
+  setButton();
+  applyParticlesClass(enabled);
+  if (enabled) startParticles();
+
+  // Retune on resize/orientation
+  let t; addEventListener('resize', () => { if (!enabled) return; clearTimeout(t); t=setTimeout(startParticles,250); });
 })();
 </script>
 
