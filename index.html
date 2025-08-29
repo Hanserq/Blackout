@@ -1,13 +1,32 @@
 <!doctype html>
 <html lang="en">
 <head>
-  
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Blackout • Lock Gate</title>
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
 
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Blackout • Lock Gate</title>
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.webmanifest" />
+
+  <!-- REPLACE the old CSP with this block -->
+  <meta http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval';
+          style-src 'self' 'unsafe-inline';
+          img-src 'self' blob: data:;
+          worker-src 'self' blob:;
+          connect-src 'self';
+          object-src 'none';
+          base-uri 'none';
+          frame-ancestors 'none';
+        ">
+  
   <style>
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%}
@@ -133,11 +152,12 @@
         const pin=pins.map(p=>p.value).join('');
         if(pin.length!==4){ statusEl.textContent='Please enter all 4 digits.'; return; }
         const ok=await sha256(pin)===stored;
-         if(ok){ 
-          // mark this tab/session as unlocked
-        sessionStorage.setItem('blackout.unlockedAt', String(Date.now()));
-        statusEl.textContent='Unlocking…'; unlockUI(); }
-        else{ lockSub.textContent='Wrong passcode. Try again.'; pins.forEach(p=>p.value=''); pins[0].focus(); }
+        if(ok){
+          sessionStorage.setItem('blackout.unlockedAt', String(Date.now()));
+          statusEl.textContent='Unlocking…'; unlockUI();
+        }else{
+          lockSub.textContent='Wrong passcode. Try again.'; pins.forEach(p=>p.value=''); pins[0].focus();
+        }
       });
 
       setupForm.addEventListener('submit',async e=>{
@@ -157,51 +177,41 @@
 
       if(getHash()) showOverlay(false); else showOverlay(true);
     })();
-
   </script>
-  
-    // ===== Service Worker registration (merged here) =====
 
-    <script>
-      
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const reg = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+  <!-- Service Worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
 
-      // Check for updates hourly
-      setInterval(() => {
-        reg.update().catch(() => {});
-      }, 60 * 60 * 1000);
+          // Check for updates hourly
+          setInterval(() => { reg.update().catch(() => {}); }, 60 * 60 * 1000);
 
-      // If a SW is waiting, tell it to skip waiting
-      if (reg.waiting) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
+          // If a SW is waiting, tell it to skip waiting
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-      // When a new SW is found and installed, tell it to skip waiting
-      reg.addEventListener('updatefound', () => {
-        const sw = reg.installing;
-        if (!sw) return;
-        sw.addEventListener('statechange', () => {
-          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-            sw.postMessage({ type: 'SKIP_WAITING' });
-          }
-        });
-      });
+          // When a new SW is found and installed, tell it to skip waiting
+          reg.addEventListener('updatefound', () => {
+            const sw = reg.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', () => {
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                sw.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
 
-      // Reload once when the new SW becomes the controller
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!window.__swReloaded) {
-          window.__swReloaded = true;
-          location.reload();
+          // Reload once when the new SW becomes the controller
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!window.__swReloaded) { window.__swReloaded = true; location.reload(); }
+          });
+        } catch (err) {
+          console.debug('SW register failed:', err);
         }
       });
-    } catch (err) {
-      console.debug('SW register failed:', err);
     }
-  });
-}
-</script>
+  </script>
 </body>
 </html>
