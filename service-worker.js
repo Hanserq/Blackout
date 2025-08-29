@@ -1,5 +1,5 @@
 // service-worker.js
-const VERSION = 'blackout-shell-v4';
+const VERSION = 'blackout-shell-v7';
 
 // Detect the scope base (e.g., "/Hanserq.github.io" on GitHub Pages, or "" at root)
 const SCOPE = (self.registration && self.registration.scope)
@@ -17,9 +17,11 @@ const ASSETS_RAW = [
   '/index.html',
   '/blackoutv1.9.2.html',
   '/manifest.webmanifest',
+
+
+  '/argon2.worker.js',
   '/argon2.config.js',
-  '/argon2.worker.js', '/argon2.config.js',
-  '/argon2.min.js', '/argon2.wasm',
+  '/argon2.min.js',
 ];
 
 const ASSETS = ASSETS_RAW.map(p);
