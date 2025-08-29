@@ -339,9 +339,21 @@ async function decryptPNG(pngFile, pass){
   const encCover=document.getElementById('coverImage'); const encDrop=$('enc-drop'), decDrop=$('dec-drop'); const encDropLabel=$('enc-drop-label'), decDropLabel=$('dec-drop-label');
   const kdfHint = document.getElementById('kdfHint');
 
-  // Boot Argon2 worker (if available)
-  try{ argonWorker = new Worker('argon2.worker.js'); argonWorker.postMessage({type:'ping'});}
-  catch(e){ console.debug('Argon2 worker unavailable', e); }
+// Boot Argon2 worker (if available)
+try {
+  argonWorker = new Worker('argon2.worker.js');
+  argonWorker.addEventListener('message', (e) => {
+    if (e && e.data && e.data.type === 'ready') {
+      ARGON_READY = true;
+      console.debug('Argon2 worker ready');
+    } else if (e && e.data && e.data.type === 'error') {
+      console.debug('Argon2 worker init error:', e.data.error);
+    }
+  });
+  argonWorker.postMessage({ type: 'ping' });
+} catch (e) {
+  console.debug('Argon2 worker unavailable', e);
+}
 
   // Prevent nav on drop
   ['dragover','drop'].forEach(t=>{ addEventListener(t,e=>e.preventDefault(),true); document.addEventListener(t,e=>e.preventDefault(),true); });
