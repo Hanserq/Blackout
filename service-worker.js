@@ -1,5 +1,5 @@
 // service-worker.js
-const VERSION = 'blackout-shell-v6';
+const VERSION = 'blackout-shell-v7';
 
 // Detect the scope base (e.g., "/Hanserq.github.io" on GitHub Pages, or "" at root)
 const SCOPE = (self.registration && self.registration.scope)
