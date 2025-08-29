@@ -56,8 +56,117 @@
 <!-- Argon2 runtime (worker + config). The worker loads argon2.min.js + argon2.wasm locally -->
 <script defer src="argon2.config.js"></script>
 <script defer src="argon2.worker.js"></script>
+
+<style>
+  /* Help button */
+  .help-btn{position:fixed;top:14px;right:16px;z-index:60;background:#222842;border:1px solid #2f3350;
+    color:#e9ebf2;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .help-btn:hover{background:#2a2f4a}
+
+  /* Help modal */
+  .help-overlay{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:none}
+  .help-overlay[aria-hidden="false"]{display:grid;place-items:center}
+  .help-card{width:min(720px,92vw);background:#121420;border:1px solid #23263a;border-radius:18px;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);padding:16px 16px 12px}
+  .help-head{display:flex;align-items:center;justify-content:space-between;padding:6px 6px 10px}
+  .help-title{font-weight:800;font-size:18px}
+  .help-body{min-height:220px}
+  .help-slide{display:none}
+  .help-slide.active{display:block}
+  .help-actions{display:flex;justify-content:space-between;gap:10px;margin-top:12px}
+  .help-actions .left, .help-actions .right{display:flex;gap:8px}
+  .hbtn{background:#222842;color:#e9ebf2;border:1px solid #2f3350;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .hbtn.primary{background:#8ba7ff;border-color:#8ba7ff;color:#0b0f1c}
+  .dots{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:8px}
+  .dot{width:8px;height:8px;border-radius:999px;background:#2a2f4a}
+  .dot.active{background:#8ba7ff}
+  .help-body p{margin:0 0 8px;color:#cdd2ea}
+  .help-body ul{margin:8px 0 0 18px;color:#cdd2ea}
+</style>
+
+
 </head>
 <body>
+
+<!-- Help trigger -->
+<button id="helpBtn" class="help-btn" type="button" aria-haspopup="dialog" aria-controls="helpModal">Help</button>
+
+<!-- Help / Tutorial modal -->
+<div id="helpModal"
+     class="help-overlay"
+     role="dialog"
+     aria-modal="true"
+     aria-hidden="true"
+     aria-labelledby="helpTitle"
+     tabindex="-1">
+
+  <div class="help-card" role="document">
+    <div class="help-head">
+      <div id="helpTitle" class="help-title">Blackout — Quick Tutorial</div>
+      <button id="helpClose" class="hbtn" type="button" aria-label="Close tutorial">Close</button>
+    </div>
+    <div class="help-body" id="helpSlides">
+      <section class="help-slide active">
+        <p><strong>What is Blackout?</strong> It wraps any file inside a PNG container and restores it later using your passphrase.</p>
+        <ul>
+          <li>Works fully offline (PWA).</li>
+          <li>Uses AES-GCM with PBKDF2 or Argon2id KDF.</li>
+          <li>Optional cover image to make the PNG look like a normal picture.</li>
+        </ul>
+      </section>
+
+      <section class="help-slide">
+        <p><strong>Encrypt → PNG</strong></p>
+        <ul>
+          <li>Drop a file or choose it.</li>
+          <li>Enter a strong passphrase. Pick a KDF (PBKDF2=compatible, Argon2id=stronger on desktops).</li>
+          <li>Optional: set “Stored filename” (restored on decrypt). If omitted, we keep the original name privately.</li>
+          <li>Optional: choose a cover image (output will visually match it).</li>
+          <li>Click <em>Encrypt</em> — we download the PNG.</li>
+        </ul>
+      </section>
+
+      <section class="help-slide">
+        <p><strong>Decrypt ← PNG</strong></p>
+        <ul>
+          <li>Drop the PNG container and enter the same passphrase.</li>
+          <li>We recover the original file and name.</li>
+        </ul>
+      </section>
+
+      <section class="help-slide">
+        <p><strong>Vaults (local, encrypted logs)</strong></p>
+        <ul>
+          <li>Create a vault and unlock it with your App Lock passcode.</li>
+          <li>Set one vault as <em>Active</em> to auto-log your future encrypts (name, size, KDF, notes).</li>
+          <li>All vault content is encrypted at rest in your browser storage.</li>
+        </ul>
+      </section>
+
+      <section class="help-slide">
+        <p><strong>Tips & Limits</strong></p>
+        <ul>
+          <li>Argon2id presets are memory-hard; on mobile they may be slower or limited.</li>
+          <li>Current build caps input file size at 100&nbsp;MB (tunable in code).</li>
+          <li>Everything runs locally — nothing is uploaded.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="help-actions">
+      <div class="left">
+        <button id="helpBack" class="hbtn" type="button">Back</button>
+      </div>
+      <div class="right">
+        <button id="helpSkip" class="hbtn" type="button">Skip</button>
+        <button id="helpNext" class="hbtn primary" type="button">Next</button>
+      </div>
+    </div>
+    <div class="dots" id="helpDots" aria-hidden="true"></div>
+  </div>
+</div>
+
+
 <div class="wrap">
   <h1>Blackout v2</h1>
   <p class="sub">Encrypt any file into a PNG (optional cover image) and decrypt it back — fully offline.</p>
@@ -161,18 +270,27 @@ function isMobile(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent
 function deviceMemGiB(){ return (navigator.deviceMemory||0); } // Chromium only
 
 async function argon2Derive(passUtf8, salt, mode){
-  if(!ARGON_READY) throw new Error('Argon2 engine not available; choose PBKDF2 or ensure argon2.min.js/wasm are present.');
-  return new Promise((resolve,reject)=>{
-    const id=Math.random().toString(36).slice(2);
-    const onMsg=(e)=>{
-      const d=e.data||{};
-      if(d && d.id===id){
-        argonWorker.removeEventListener('message',onMsg);
-        if(d.ok) resolve(new Uint8Array(d.key)); else reject(new Error(d.error||'Argon2 failed'));
-      }
+  if (!ARGON_READY) throw new Error('Argon2 engine not available');
+  return new Promise((resolve, reject) => {
+    const id = Math.random().toString(36).slice(2);
+
+    const onMsg = (e) => {
+      const d = e.data || {};
+      if (d.id !== id) return;
+      argonWorker.removeEventListener('message', onMsg);
+      if (d.ok) resolve(new Uint8Array(d.key));
+      else reject(new Error(d.error || 'Argon2 failed'));
     };
-    argonWorker.addEventListener('message',onMsg);
-    argonWorker.postMessage({type:'derive', id, pass: passUtf8, salt, mode, caps:{mobile:isMobile(), memGiB:deviceMemGiB()}}, [passUtf8.buffer, salt.buffer]);
+    argonWorker.addEventListener('message', onMsg);
+
+    // Keep original salt for container header
+    const passBuf  = passUtf8 instanceof Uint8Array ? passUtf8 : new Uint8Array(passUtf8);
+    const saltCopy = (salt instanceof Uint8Array ? salt : new Uint8Array(salt)).slice();
+
+    argonWorker.postMessage(
+      { type: 'derive', id, pass: passBuf, salt: saltCopy, mode, caps:{ mobile:isMobile(), memGiB:deviceMemGiB() } },
+      [passBuf.buffer]  // transfer only passphrase
+    );
   });
 }
 
@@ -578,6 +696,83 @@ if(coverInput && coverPicker){
     }catch(e){ console.error('[Vaults] log failed', e); }
   };
   render();
+})();
+</script>
+
+<script>
+        
+(function(){
+  const LS_KEY = 'blackout.tutorial.done.v1';
+  const modal = document.getElementById('helpModal');
+  const btnOpen = document.getElementById('helpBtn');
+  const btnClose = document.getElementById('helpClose');
+  const btnNext = document.getElementById('helpNext');
+  const btnBack = document.getElementById('helpBack');
+  const btnSkip = document.getElementById('helpSkip');
+  const slidesWrap = document.getElementById('helpSlides');
+  const dotsWrap = document.getElementById('helpDots');
+  const slides = Array.from(slidesWrap.querySelectorAll('.help-slide'));
+  let idx = 0;
+
+  function renderDots(){
+    dotsWrap.innerHTML = slides.map((_,i)=>`<span class="dot ${i===idx?'active':''}" aria-hidden="true"></span>`).join('');
+  }
+  function show(i){
+    idx = Math.max(0, Math.min(slides.length-1, i));
+    slides.forEach((s,j)=> s.classList.toggle('active', j===idx));
+    btnBack.disabled = idx===0;
+    btnNext.textContent = idx===slides.length-1 ? 'Done' : 'Next';
+    renderDots();
+  }
+        
+  function open(firstRun=false){
+    modal.setAttribute('aria-hidden','false');
+    modal.style.display = 'grid';
+    document.body.style.overflow='hidden';
+
+    // NEW: focus the modal itself first
+    modal.focus({ preventScroll: true });
+
+    if(firstRun) idx = 0;
+    show(idx);
+
+    // Then move focus to the Close button
+    btnClose.focus({ preventScroll: true });
+  }
+
+  function close(done=false){
+    modal.setAttribute('aria-hidden','true');
+    modal.style.display = 'none';
+    document.body.style.overflow='';
+    if(done) localStorage.setItem(LS_KEY, '1');
+    btnOpen.focus({preventScroll:true});
+  }
+
+  // Wire buttons
+  btnOpen.addEventListener('click', ()=> open(false));
+  btnClose.addEventListener('click', ()=> close(false));
+  btnSkip.addEventListener('click', ()=> close(true));
+  btnBack.addEventListener('click', ()=> show(idx-1));
+  btnNext.addEventListener('click', ()=> { if(idx===slides.length-1) close(true); else show(idx+1); });
+
+  // Keyboard
+  modal.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape') close(false);
+    if(e.key==='ArrowRight') show(idx+1);
+    if(e.key==='ArrowLeft') show(idx-1);
+  });
+
+  // Click outside to close
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) close(false); });
+
+  // First-run: show tutorial (only if app lock allowed entry)
+  try {
+    const firstRun = !localStorage.getItem(LS_KEY);
+    if(firstRun) open(true);
+  } catch {}
+
+  // Build dots initially
+  renderDots();
 })();
 </script>
 
