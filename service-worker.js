@@ -1,5 +1,5 @@
 // service-worker.js
-const VERSION = 'blackout-shell-v7';
+const VERSION = 'blackout-shell-v15';
 
 const SCOPE = (self.registration && self.registration.scope)
   ? new URL(self.registration.scope).pathname.replace(/\/$/, '')
@@ -22,6 +22,7 @@ const ASSETS_RAW = [
 
   '/particles.min.js',
   '/particlesjs-config.json',
+  'particles-loader.js',
 ];
 
 const ASSETS = ASSETS_RAW.map(p);

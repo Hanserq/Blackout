@@ -21,14 +21,20 @@
       ">
 
 <!-- Guard: only allow if unlocked in last 30 minutes -->
-<script>(function(){const MAX_AGE=30*60*1000;const ts=Number(sessionStorage.getItem('blackout.unlockedAt')||0);const hasLock=!!localStorage.getItem('blackout.lock.hash');if(hasLock&&(!ts||Date.now()-ts>MAX_AGE)) location.replace('index.html');})();</script>
+<script>
+(function(){
+  const MAX_AGE=30*60*1000;
+  const ts=Number(sessionStorage.getItem('blackout.unlockedAt')||0);
+  const hasLock=!!localStorage.getItem('blackout.lock.hash');
+  if(hasLock&&(!ts||Date.now()-ts>MAX_AGE)) location.replace('index.html');
+})();
+</script>
 
 <style>
   :root{ --bg:#0a0b0f; --fg:#e9ebf2; --muted:#a6acc3; --accent:#8ba7ff; --ok:#35d69b; --err:#ff6b6b;
          --card:#121420; --stroke:#23263a; --hover:#1a1d2c; --radius:18px; }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
-  /* Ensure content stacks over background */
   body { position: relative; z-index: 0; }
   .wrap{max-width:1080px;margin:28px auto;padding:0 18px; position:relative; z-index: 2;}
   h1{margin:0 0 8px;font-size:clamp(24px,3.6vw,36px);letter-spacing:-.02em}
@@ -36,13 +42,11 @@
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   .card{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);padding:16px;box-shadow:0 10px 28px rgba(0,0,0,.35)}
 
-  /* Transparent cards only when particles are enabled */
   body.particles-on .card{
-  background: rgba(18,20,32,0.65);      /* ~35% see-through */
-  border-color: rgba(35,38,58,0.40);    /* soften the stroke */
-  backdrop-filter: blur(6px);           /* optional glassy feel */
+    background: rgba(18,20,32,0.65);
+    border-color: rgba(35,38,58,0.40);
+    backdrop-filter: blur(6px);
   }
-  /* (optional) Soften a few inner surfaces too */
   body.particles-on .log{ background: rgba(13,17,34,0.65); }
   body.particles-on .drop{ background: rgba(14,16,32,0.40); }
 
@@ -54,29 +58,35 @@
   input[type="text"],input[type="password"],select{width:100%;padding:12px;border-radius:14px;border:1px solid var(--stroke);background:#0e1020;color:var(--fg)}
   input::placeholder{color:#8086a4}
   button{background:var(--accent);color:#0b0f1c;border:0;padding:12px 16px;border-radius:14px;font-weight:800;cursor:pointer}
-  button.secondary{background:#222842;color:var(--fg)}
+  button.secondary{background:#222842;color:#e9ebf2}
   button:active{transform:translateY(1px)}
   .actions{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
   .drop{border:1.5px dashed #2d3350;border-radius:16px;padding:18px;text-align:center;color:var(--muted);min-height:120px;display:grid;place-items:center;cursor:pointer}
   .drop.active{outline:2px dashed var(--accent)}
   .log{white-space:pre-wrap;font-size:13px;line-height:1.45;background:#0d1122;border-radius:14px;padding:10px;border:1px solid #1d2135;min-height:54px}
   .ok{color:var(--ok)} .err{color:var(--err)} .hint{font-size:12px;color:var(--muted);margin-top:6px}
-  @media (max-width: 900px){ .grid{grid-template-columns:1fr} .row,.row3{grid-template-columns:1fr} .drop{min-height:150px} button, input[type="text"],input[type="password"],select{font-size:16px} }
+  @media (max-width: 900px){
+    .grid{grid-template-columns:1fr}
+    .row,.row3{grid-template-columns:1fr}
+    .drop{min-height:150px}
+    button, input[type="text"],input[type="password"],select{font-size:16px}
+  }
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .cover-picker{display:inline-flex;align-items:center;gap:10px;border:1.5px dashed #2d3350;border-radius:12px;padding:10px 12px;background:#0e1020;cursor:pointer;user-select:none}
-  .cover-picker .upload-text{font-size:.9rem;color:var(--muted)} .cover-picker.active{outline:2px dashed var(--accent)}
-
-  /* Help button */
+  .cover-picker .upload-text{font-size:.9
+  }
+  /* Particles host */
+  #particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+  .particles-toggle{
+    position:fixed;top:14px;right:120px;z-index:60;
+    background:#222842;border:1px solid #2f3350;color:#e9ebf2;
+    border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer
+  }
+  .particles-toggle:hover{background:#2a2f4a}
   .help-btn{position:fixed;top:14px;right:16px;z-index:60;background:#222842;border:1px solid #2f3350;
     color:#e9ebf2;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer}
   .help-btn:hover{background:#2a2f4a}
 
-  /* Particles toggle (near Help) */
-  .particles-toggle{position:fixed;top:14px;right:120px;z-index:60;background:#222842;border:1px solid #2f3350;
-    color:#e9ebf2;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer}
-  .particles-toggle:hover{background:#2a2f4a}
-
-  /* Help modal */
   .help-overlay{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:none}
   .help-overlay[aria-hidden="false"]{display:grid;place-items:center}
   .help-card{width:min(720px,92vw);background:#121420;border:1px solid #23263a;border-radius:18px;
@@ -96,7 +106,6 @@
   .help-body p{margin:0 0 8px;color:#cdd2ea}
   .help-body ul{margin:8px 0 0 18px;color:#cdd2ea}
 
-  /* Vaults */
   .vaults-card{width:min(1080px,94vw);margin:24px auto 60px;background:#121420;color:#e9ebf2;border:1px solid #23263a;border-radius:18px;box-shadow:0 16px 48px rgba(0,0,0,.45);}
   .vaults-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #23263a}
   .vaults-title{font-size:20px;font-weight:800;letter-spacing:-.01em}
@@ -115,11 +124,9 @@
   .vtable{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:14px}.vtable th{text-align:left;color:#a6acc3;font-weight:600}.vtable td{vertical-align:top}
   .hint{color:#a6acc3;font-size:12px}.warn{color:#f39c9c;font-size:12px}
 
-  /* Particles host sits behind everything */
   #particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
 </style>
 
-<!-- Argon2 runtime (worker + config). The worker loads argon2.min.js + argon2.wasm locally -->
 <script defer src="argon2.config.js"></script>
 <script defer src="argon2.worker.js"></script>
 </head>
@@ -181,7 +188,7 @@
         <p><strong>Tips & Limits</strong></p>
         <ul>
           <li>Argon2id presets are memory-hard; on mobile they may be slower or limited.</li>
-          <li>Current build caps input file size at 100&nbsp;MB (tunable in code).</li>
+          <li>Current build caps input file size (varies by KDF preset).</li>
           <li>Everything runs locally — nothing is uploaded.</li>
         </ul>
       </section>
@@ -281,7 +288,6 @@
     </section>
   </div>
 </div>
-
 <script>
 /* ---------- small helpers ---------- */
 const $ = (id)=>document.getElementById(id);
@@ -365,9 +371,18 @@ const KDF_CODE = {
 };
 const CODE_KDF = Object.fromEntries(Object.entries(KDF_CODE).map(([k,v])=>[v,k]));
 
+// Different max caps depending on KDF mode
+const MAX_CAPS = {
+  pbkdf2_std: 100 * 1024 * 1024,        // 100 MB
+  pbkdf2_strong: 175 * 1024 * 1024,     // 175 MB
+  argon2id_interactive: 200 * 1024 * 1024, // 200 MB
+  argon2id_balanced: 350 * 1024 * 1024,    // 350 MB
+  argon2id_high: 500 * 1024 * 1024         // 500 MB
+};
+
 async function encryptBlob(file, pass, storedName, kdfMode, coverPngBytes){
-  const MAX_BYTES = 100 * 1024 * 1024; // adjust if you want a higher cap
-  if (file.size > MAX_BYTES) throw new Error('File exceeds 100 MB cap.');
+  const MAX_BYTES = MAX_CAPS[kdfMode] || 100 * 1024 * 1024;
+  if (file.size > MAX_BYTES) throw new Error(`File exceeds cap for ${kdfMode}: ${(MAX_BYTES/1024/1024)} MB`);
   const fileBytes = new Uint8Array(await file.arrayBuffer());
   const pick = (storedName && storedName.trim()) ? storedName.trim() : (file.name || 'file.bin');
   const parts = splitNameExt(pick);
@@ -447,7 +462,6 @@ async function decryptPNG(pngFile, pass){
   }
 }
 </script>
-
 <!-- Output name helpers -->
 <script>
 (function(){
@@ -513,7 +527,7 @@ async function decryptPNG(pngFile, pass){
   // Warn if Argon2 selected on mobile
   kdfSelect.addEventListener('change', ()=>{
     const val=kdfSelect.value, mob=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if(val.startsWith('argon2id') && mob) kdfHint.textContent='Argon2id may be heavy on mobile; consider PBKDF2 or Argon2id — Interactive.';
+    if(val.startsWith('argon2id') && mob) kdfHint.textContent='⚠️ Argon2id may be heavy on mobile; consider PBKDF2 or Argon2id — Interactive.';
     else kdfHint.textContent='PBKDF2 is most compatible; Argon2id is stronger on desktops.';
   });
 
@@ -528,6 +542,12 @@ async function decryptPNG(pngFile, pass){
     if (mode.startsWith('argon2id') && !ARGON_READY) {
       return log(encLog, 'Argon2 engine missing. Ensure argon2.min.js (bundled) is in the project root, then reload.', 'err');
     }
+
+    // Warn but continue if file is large with Argon2id
+  const MAX_MB = (MAX_CAPS[mode] || 100*1024*1024) / (1024*1024);
+  if (mode.startsWith('argon2id') && f.size > 50*1024*1024) {
+    log(encLog, `⚠️ Warning: Encrypting ${(f.size/1024/1024).toFixed(1)} MB with ${mode} may be slow.\n(Max allowed: ${MAX_MB} MB)\nContinuing…`);
+  }
 
     btnEnc.disabled = true;
     log(encLog, 'Encrypting…');
@@ -547,7 +567,7 @@ async function decryptPNG(pngFile, pass){
       a.download = outName;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 8000);
-      log(encLog, 'Done → ' + outName, 'ok');
+      log(encLog, '✅ Done → ' + outName, 'ok');
 
       // Log to active vault
       const kdfLabel = window.getSelectedKdfLabel();
@@ -588,21 +608,28 @@ async function decryptPNG(pngFile, pass){
   };
 })();
 </script>
-
 <!-- Cover picker label/drag -->
 <script>
-const coverInput=document.getElementById('coverImage'); const coverPicker=document.getElementById('coverPicker');
+const coverInput=document.getElementById('coverImage'); 
+const coverPicker=document.getElementById('coverPicker');
 if(coverInput && coverPicker){
   const coverText=coverPicker.querySelector('.upload-text');
-  coverInput.addEventListener('change',()=>{ const f=coverInput.files&&coverInput.files[0]; coverText.textContent=f?f.name:'Choose cover image'; });
+  coverInput.addEventListener('change',()=>{ 
+    const f=coverInput.files&&coverInput.files[0]; 
+    coverText.textContent=f?f.name:'Choose cover image'; 
+  });
   ['dragover','drop'].forEach(ev=>coverPicker.addEventListener(ev,e=>e.preventDefault()));
   coverPicker.addEventListener('dragover',()=>coverPicker.classList.add('active'));
   coverPicker.addEventListener('dragleave',()=>coverPicker.classList.remove('active'));
   coverPicker.addEventListener('drop',e=>{
     coverPicker.classList.remove('active');
-    const files=e.dataTransfer&&e.dataTransfer.files; const f=files&&files[0]; if(!f) return;
-    let dt; try{ dt=new DataTransfer(); }catch{ dt=new ClipboardEvent('').clipboardData||null; }
-    if(dt){ dt.items.add(f); coverInput.files=dt.files; } else { coverText.textContent=f.name; return; }
+    const files=e.dataTransfer&&e.dataTransfer.files; 
+    const f=files&&files[0]; 
+    if(!f) return;
+    let dt; 
+    try{ dt=new DataTransfer(); }catch{ dt=new ClipboardEvent('').clipboardData||null; }
+    if(dt){ dt.items.add(f); coverInput.files=dt.files; } 
+    else { coverText.textContent=f.name; return; }
     coverInput.dispatchEvent(new Event('change',{bubbles:true}));
   });
 }
@@ -619,69 +646,353 @@ if(coverInput && coverPicker){
   </div>
 
   <div class="vaults-body">
-    <div id="vaultsNotice" class="hint">No vault unlocked. Create one or unlock an existing vault to start auto-logging encrypts.</div>
+    <div id="vaultsNotice" class="hint">
+      No vault unlocked. Create one or unlock an existing vault to start auto-logging encrypts.
+    </div>
     <div id="vaultsList" class="vlist"></div>
   </div>
 </section>
 
 <script>
-/* === Vaults logic (unchanged) === */
+/* === Vaults logic === */
 (function(){
-  const IDX_KEY='blackout.vaults.index.v1', VAULT_PREFIX='blackout.vault.v1::', ACTIVE_KEY='blackout.activeVaultId';
-  const enc=new TextEncoder(), dec=new TextDecoder(); const $=s=>document.querySelector(s);
-  const listEl=$('#vaultsList'), noticeEl=$('#vaultsNotice'); const unlocked=new Map();
-  function b64e(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); } function b64d(s){ return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); }
-  function now(){ return Date.now(); } function fmt(n){ const u=['B','KB','MB','GB']; let i=0; while(n>=1024&&i<u.length-1){n/=1024;i++;} return (n<10&&i?n.toFixed(1):Math.round(n))+' '+u[i]; }
+  const IDX_KEY='blackout.vaults.index.v1', 
+        VAULT_PREFIX='blackout.vault.v1::', 
+        ACTIVE_KEY='blackout.activeVaultId';
+  const enc=new TextEncoder(), dec=new TextDecoder(); 
+  const $=s=>document.querySelector(s);
+  const listEl=$('#vaultsList'), noticeEl=$('#vaultsNotice'); 
+  const unlocked=new Map();
+
+  function b64e(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); } 
+  function b64d(s){ return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); }
+  function now(){ return Date.now(); } 
+  function fmt(n){ 
+    const u=['B','KB','MB','GB']; 
+    let i=0; 
+    while(n>=1024&&i<u.length-1){n/=1024;i++;} 
+    return (n<10&&i?n.toFixed(1):Math.round(n))+' '+u[i]; 
+  }
+
   function readIndex(){ try{ return JSON.parse(localStorage.getItem(IDX_KEY)||'[]'); }catch{ return []; } }
   function writeIndex(arr){ localStorage.setItem(IDX_KEY, JSON.stringify(arr)); }
   function readVaultRaw(id){ try{ const s=localStorage.getItem(VAULT_PREFIX+id); return s?JSON.parse(s):null; }catch{ return null; } }
   function writeVaultRaw(id,obj){ localStorage.setItem(VAULT_PREFIX+id, JSON.stringify(obj)); }
-  async function deriveKey(pass,salt,iters=150000){ const base=await crypto.subtle.importKey('raw',enc.encode(pass),{name:'PBKDF2'},false,['deriveKey']); return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iters,hash:'SHA-256'}, base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); }
-  async function encryptArr(key,arr){ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(arr))); return {iv:b64e(iv),data:b64e(ct),ts:now()}; }
-  async function decryptArr(key,ivB64,dataB64){ const iv=b64d(ivB64), data=b64d(dataB64); const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data); return JSON.parse(dec.decode(pt)); }
+
+  async function deriveKey(pass,salt,iters=150000){ 
+    const base=await crypto.subtle.importKey('raw',enc.encode(pass),{name:'PBKDF2'},false,['deriveKey']); 
+    return crypto.subtle.deriveKey(
+      {name:'PBKDF2',salt,iterations:iters,hash:'SHA-256'}, 
+      base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']
+    ); 
+  }
+
+  async function encryptArr(key,arr){ 
+    const iv=crypto.getRandomValues(new Uint8Array(12)); 
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(JSON.stringify(arr))); 
+    return {iv:b64e(iv),data:b64e(ct),ts:now()}; 
+  }
+
+  async function decryptArr(key,ivB64,dataB64){ 
+    const iv=b64d(ivB64), data=b64d(dataB64); 
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,data); 
+    return JSON.parse(dec.decode(pt)); 
+  }
+
   function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-  function tableHtml(id,arr){ const rows=[...arr].sort((a,b)=>(b.when||0)-(a.when||0)); const tr=rows.map(r=>`<tr><td>${new Date(r.when||Date.now()).toLocaleString()}</td><td>${escapeHtml(r.originalName||'-')}</td><td style="text-align:right">${fmt(r.size||0)}</td><td>${escapeHtml(r.outputName||'-')}</td><td>${escapeHtml(r.kdf||'-')}</td><td>${escapeHtml(r.notes||'')}</td></tr>`).join(''); return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:6px 0 8px"><button class="vbtn" data-act="make-active" title="Use this as default target for auto-log">Set Active</button><button class="vbtn" data-act="add-test">Add test</button></div><div class="vtable-wrap"><table class="vtable"><thead><tr><th>When</th><th>Original name</th><th style="text-align:right">Size</th><th>Output</th><th>KDF</th><th>Notes</th></tr></thead><tbody>${tr||''}</tbody></table></div>${rows.length?'':`<div class="hint" style="margin-top:6px">No entries yet. Encrypt something — it will appear here if this vault is active.</div>`}`; }
-  function render(){ const idx=readIndex().sort((a,b)=>(b.updated||b.created)-(a.updated||a.created)); listEl.innerHTML=''; if(!idx.length){ listEl.innerHTML=`<div class="hint">No vaults yet. Create your first vault above.</div>`; return; }
-    const activeId=sessionStorage.getItem(ACTIVE_KEY); noticeEl.textContent=unlocked.size?`Active vault: ${activeId?(idx.find(v=>v.id===activeId)?.name||'Unknown'):'—'}`:'No vault unlocked. Create or unlock to start auto-logging.';
-    for(const v of idx){ const row=document.createElement('div'); row.className='vrow'; row.setAttribute('data-id',v.id); row.setAttribute('aria-expanded','false'); const isUnlocked=unlocked.has(v.id); const count=v.count||0; const updated=new Date(v.updated||v.created).toLocaleString();
-      row.innerHTML=`<div class="vrow-head"><div><div class="vname">${escapeHtml(v.name)}</div><div class="vmeta">Created ${new Date(v.created).toLocaleString()} • Updated ${updated} • ${count} item${count===1?'':'s'}</div></div><div class="vmeta ${isUnlocked?'':'warn'}" style="justify-self:end">${isUnlocked?'Unlocked':'Locked'}</div><div class="vrow-actions">${isUnlocked?`<button class="vbtn" data-act="lock">Lock</button><button class="vbtn" data-act="export">Export CSV</button><button class="vbtn" data-act="clear">Clear</button>`:`<input type="password" class="vinput" data-act="pass" placeholder="App Lock passcode" style="max-width:220px"><button class="vbtn primary" data-act="unlock">Unlock</button>`}<button class="vbtn" data-act="rename">Rename</button><button class="vbtn" data-act="delete">Delete</button><button class="vcollapse" data-act="toggle">${isUnlocked?'Collapse':'Expand'}</button></div></div><div class="vrow-body">${isUnlocked?tableHtml(v.id, unlocked.get(v.id).data):`<div class="hint">Unlock to view entries.</div>`}</div>`;
-      row.addEventListener('click', async (e)=>{ const act=e.target?.getAttribute?.('data-act'); if(!act) return; const id=v.id;
-        if(act==='toggle'){ const ex=row.getAttribute('aria-expanded')==='true'; row.setAttribute('aria-expanded',String(!ex)); if(!ex&&unlocked.has(id)) row.querySelector('.vrow-body').innerHTML=tableHtml(id,unlocked.get(id).data); }
-        if(act==='unlock'){ const pass=row.querySelector('[data-act="pass"]').value||''; const raw=readVaultRaw(id); if(!raw||!raw.salt){ alert('Vault is missing or corrupt.'); return; } try{ const base=await crypto.subtle.importKey('raw',enc.encode(pass),{name:'PBKDF2'},false,['deriveKey']); const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:Uint8Array.from(atob(raw.salt),c=>c.charCodeAt(0)),iterations:150000,hash:'SHA-256'}, base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); const data=raw.iv&&raw.data? await (async()=>{ const iv=Uint8Array.from(atob(raw.iv),c=>c.charCodeAt(0)); const ct=Uint8Array.from(atob(raw.data),c=>c.charCodeAt(0)); const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct); return JSON.parse(dec.decode(new Uint8Array(pt))); })():[]; unlocked.set(id,{key,data}); sessionStorage.setItem(ACTIVE_KEY,id); row.setAttribute('aria-expanded','true'); render(); }catch(err){ alert('Incorrect passcode or corrupt vault.'); } }
-        if(act==='lock'){ unlocked.delete(id); if(sessionStorage.getItem(ACTIVE_KEY)===id) sessionStorage.removeItem(ACTIVE_KEY); render(); }
-        if(act==='export'){ const d=unlocked.get(id)?.data||[]; if(!d.length){ alert('Nothing to export.'); return; } const header=['when_iso','original_name','size_bytes','output_name','kdf','notes']; const rows=d.map(r=>[new Date(r.when||Date.now()).toISOString(), r.originalName||'', r.size||0, r.outputName||'', r.kdf||'', (r.notes||'').replace(/\n/g,' ')]); const csv=[header.join(','), ...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`vault_${id}.csv`; a.click(); URL.revokeObjectURL(a.href); }
-        if(act==='clear'){ if(!confirm('Clear all entries in this vault?')) return; const rec=unlocked.get(id); if(!rec) return alert('Unlock first.'); rec.data=[]; await (async()=>{ const encd=await (async()=>{ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},rec.key,enc.encode(JSON.stringify(rec.data))); return {iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), ts:now()}; })(); const raw=readVaultRaw(id); writeVaultRaw(id,{v:1, iv:encd.iv, data:encd.data, salt:raw.salt, ts:now()}); const idx=readIndex(); const meta=idx.find(x=>x.id===id); if(meta){ meta.updated=now(); meta.count=0; writeIndex(idx); } })(); render(); }
-        if(act==='delete'){ if(!confirm(`Delete vault “${v.name}”? This cannot be undone.`)) return; localStorage.removeItem(VAULT_PREFIX+id); writeIndex(readIndex().filter(x=>x.id!==id)); unlocked.delete(id); if(sessionStorage.getItem(ACTIVE_KEY)===id) sessionStorage.removeItem(ACTIVE_KEY); render(); }
-        if(act==='rename'){ const name=prompt('New name:', v.name); if(!name) return; const idx=readIndex(); const meta=idx.find(x=>x.id===id); if(!meta) return; meta.name=name; meta.updated=now(); writeIndex(idx); render(); }
-        if(act==='make-active'){ if(!unlocked.has(id)){ alert('Unlock this vault first.'); return; } sessionStorage.setItem(ACTIVE_KEY,id); noticeEl.textContent=`Active vault: ${v.name}`; }
-        if(act==='add-test'){ const rec=unlocked.get(id); if(!rec){ alert('Unlock first.'); return; } rec.data.push({originalName:'secret.pdf', outputName:'blackout_demo.png', size:1234567, kdf:'PBKDF2 — Standard', notes:'Cover used', when:now()}); const encd=await (async()=>{ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},rec.key,enc.encode(JSON.stringify(rec.data))); return {iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), ts:now()}; })(); const raw=readVaultRaw(id); writeVaultRaw(id,{v:1, iv:encd.iv, data:encd.data, salt:raw.salt, ts:now()}); const idx=readIndex(); const meta=idx.find(x=>x.id===id); if(meta){ meta.updated=now(); meta.count=rec.data.length; writeIndex(idx);} render(); }
+
+  function tableHtml(id,arr){ 
+    const rows=[...arr].sort((a,b)=>(b.when||0)-(a.when||0)); 
+    const tr=rows.map(r=>`<tr>
+      <td>${new Date(r.when||Date.now()).toLocaleString()}</td>
+      <td>${escapeHtml(r.originalName||'-')}</td>
+      <td style="text-align:right">${fmt(r.size||0)}</td>
+      <td>${escapeHtml(r.outputName||'-')}</td>
+      <td>${escapeHtml(r.kdf||'-')}</td>
+      <td>${escapeHtml(r.notes||'')}</td>
+    </tr>`).join('');
+    return `<div style="display:flex;gap:8px;justify-content:flex-end;margin:6px 0 8px">
+      <button class="vbtn" data-act="make-active" title="Use this as default target for auto-log">Set Active</button>
+      <button class="vbtn" data-act="add-test">Add test</button>
+    </div>
+    <div class="vtable-wrap">
+      <table class="vtable">
+        <thead><tr>
+          <th>When</th><th>Original name</th><th style="text-align:right">Size</th>
+          <th>Output</th><th>KDF</th><th>Notes</th>
+        </tr></thead>
+        <tbody>${tr||''}</tbody>
+      </table>
+    </div>
+    ${rows.length?'':`<div class="hint" style="margin-top:6px">No entries yet. Encrypt something — it will appear here if this vault is active.</div>`}`;
+  }  function render(){ 
+    const idx=readIndex().sort((a,b)=>(b.updated||b.created)-(a.updated||a.created)); 
+    listEl.innerHTML=''; 
+    if(!idx.length){ 
+      listEl.innerHTML=`<div class="hint">No vaults yet. Create your first vault above.</div>`; 
+      return; 
+    }
+    const activeId=sessionStorage.getItem(ACTIVE_KEY); 
+    noticeEl.textContent=unlocked.size
+      ? `Active vault: ${activeId?(idx.find(v=>v.id===activeId)?.name||'Unknown'):'—'}`
+      : 'No vault unlocked. Create or unlock to start auto-logging.';
+
+    for(const v of idx){ 
+      const row=document.createElement('div'); 
+      row.className='vrow'; 
+      row.setAttribute('data-id',v.id); 
+      row.setAttribute('aria-expanded','false'); 
+      const isUnlocked=unlocked.has(v.id); 
+      const count=v.count||0; 
+      const updated=new Date(v.updated||v.created).toLocaleString();
+
+      row.innerHTML=`
+        <div class="vrow-head">
+          <div>
+            <div class="vname">${escapeHtml(v.name)}</div>
+            <div class="vmeta">Created ${new Date(v.created).toLocaleString()} • Updated ${updated} • ${count} item${count===1?'':'s'}</div>
+          </div>
+          <div class="vmeta ${isUnlocked?'':'warn'}" style="justify-self:end">${isUnlocked?'Unlocked':'Locked'}</div>
+          <div class="vrow-actions">
+            ${isUnlocked
+              ? `<button class="vbtn" data-act="lock">Lock</button>
+                 <button class="vbtn" data-act="export">Export CSV</button>
+                 <button class="vbtn" data-act="clear">Clear</button>`
+              : `<input type="password" class="vinput" data-act="pass" placeholder="App Lock passcode" style="max-width:220px">
+                 <button class="vbtn primary" data-act="unlock">Unlock</button>`}
+            <button class="vbtn" data-act="rename">Rename</button>
+            <button class="vbtn" data-act="delete">Delete</button>
+            <button class="vcollapse" data-act="toggle">${isUnlocked?'Collapse':'Expand'}</button>
+          </div>
+        </div>
+        <div class="vrow-body">${isUnlocked?tableHtml(v.id, unlocked.get(v.id).data):`<div class="hint">Unlock to view entries.</div>`}</div>`;
+
+      row.addEventListener('click', async (e)=>{ 
+        const act=e.target?.getAttribute?.('data-act'); 
+        if(!act) return; 
+        const id=v.id;
+
+        if(act==='toggle'){ 
+          const ex=row.getAttribute('aria-expanded')==='true'; 
+          row.setAttribute('aria-expanded',String(!ex)); 
+          if(!ex&&unlocked.has(id)) 
+            row.querySelector('.vrow-body').innerHTML=tableHtml(id,unlocked.get(id).data); 
+        }
+
+        if(act==='unlock'){ 
+          const pass=row.querySelector('[data-act="pass"]').value||''; 
+          const raw=readVaultRaw(id); 
+          if(!raw||!raw.salt){ alert('Vault is missing or corrupt.'); return; } 
+          try{ 
+            const base=await crypto.subtle.importKey('raw',enc.encode(pass),{name:'PBKDF2'},false,['deriveKey']); 
+            const key=await crypto.subtle.deriveKey(
+              {name:'PBKDF2',salt:Uint8Array.from(atob(raw.salt),c=>c.charCodeAt(0)),iterations:150000,hash:'SHA-256'}, 
+              base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']
+            ); 
+            const data=raw.iv&&raw.data
+              ? await (async()=>{ 
+                  const iv=Uint8Array.from(atob(raw.iv),c=>c.charCodeAt(0)); 
+                  const ct=Uint8Array.from(atob(raw.data),c=>c.charCodeAt(0)); 
+                  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct); 
+                  return JSON.parse(dec.decode(new Uint8Array(pt))); 
+                })()
+              : []; 
+            unlocked.set(id,{key,data}); 
+            sessionStorage.setItem(ACTIVE_KEY,id); 
+            row.setAttribute('aria-expanded','true'); 
+            render(); 
+          }catch(err){ alert('Incorrect passcode or corrupt vault.'); } 
+        }
+
+        if(act==='lock'){ 
+          unlocked.delete(id); 
+          if(sessionStorage.getItem(ACTIVE_KEY)===id) sessionStorage.removeItem(ACTIVE_KEY); 
+          render(); 
+        }
+
+        if(act==='export'){ 
+          const d=unlocked.get(id)?.data||[]; 
+          if(!d.length){ alert('Nothing to export.'); return; } 
+          const header=['when_iso','original_name','size_bytes','output_name','kdf','notes']; 
+          const rows=d.map(r=>[
+            new Date(r.when||Date.now()).toISOString(),
+            r.originalName||'',
+            r.size||0,
+            r.outputName||'',
+            r.kdf||'',
+            (r.notes||'').replace(/\n/g,' ')
+          ]); 
+          const csv=[header.join(','), ...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n'); 
+          const blob=new Blob([csv],{type:'text/csv'}); 
+          const a=document.createElement('a'); 
+          a.href=URL.createObjectURL(blob); 
+          a.download=`vault_${id}.csv`; 
+          a.click(); 
+          URL.revokeObjectURL(a.href); 
+        }
+
+        if(act==='clear'){ 
+          if(!confirm('Clear all entries in this vault?')) return; 
+          const rec=unlocked.get(id); 
+          if(!rec) return alert('Unlock first.'); 
+          rec.data=[]; 
+          await (async()=>{ 
+            const encd=await (async()=>{ 
+              const iv=crypto.getRandomValues(new Uint8Array(12)); 
+              const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},rec.key,enc.encode(JSON.stringify(rec.data))); 
+              return {iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), ts:now()}; 
+            })(); 
+            const raw=readVaultRaw(id); 
+            writeVaultRaw(id,{v:1, iv:encd.iv, data:encd.data, salt:raw.salt, ts:now()}); 
+            const idx=readIndex(); 
+            const meta=idx.find(x=>x.id===id); 
+            if(meta){ meta.updated=now(); meta.count=0; writeIndex(idx); } 
+          })(); 
+          render(); 
+        }
+
+        if(act==='delete'){ 
+          if(!confirm(`Delete vault “${v.name}”? This cannot be undone.`)) return; 
+          localStorage.removeItem(VAULT_PREFIX+id); 
+          writeIndex(readIndex().filter(x=>x.id!==id)); 
+          unlocked.delete(id); 
+          if(sessionStorage.getItem(ACTIVE_KEY)===id) sessionStorage.removeItem(ACTIVE_KEY); 
+          render(); 
+        }
+
+        if(act==='rename'){ 
+          const name=prompt('New name:', v.name); 
+          if(!name) return; 
+          const idx=readIndex(); 
+          const meta=idx.find(x=>x.id===id); 
+          if(!meta) return; 
+          meta.name=name; 
+          meta.updated=now(); 
+          writeIndex(idx); 
+          render(); 
+        }
+
+        if(act==='make-active'){ 
+          if(!unlocked.has(id)){ alert('Unlock this vault first.'); return; } 
+          sessionStorage.setItem(ACTIVE_KEY,id); 
+          noticeEl.textContent=`Active vault: ${v.name}`; 
+        }
+
+        if(act==='add-test'){ 
+          const rec=unlocked.get(id); 
+          if(!rec){ alert('Unlock first.'); return; } 
+          rec.data.push({
+            originalName:'secret.pdf', 
+            outputName:'blackout_demo.png', 
+            size:1234567, 
+            kdf:'PBKDF2 — Standard', 
+            notes:'Cover used', 
+            when:now()
+          }); 
+          const encd=await (async()=>{ 
+            const iv=crypto.getRandomValues(new Uint8Array(12)); 
+            const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},rec.key,enc.encode(JSON.stringify(rec.data))); 
+            return {iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), ts:now()}; 
+          })(); 
+          const raw=readVaultRaw(id); 
+          writeVaultRaw(id,{v:1, iv:encd.iv, data:encd.data, salt:raw.salt, ts:now()}); 
+          const idx=readIndex(); 
+          const meta=idx.find(x=>x.id===id); 
+          if(meta){ meta.updated=now(); meta.count=rec.data.length; writeIndex(idx);} 
+          render(); 
+        }
       });
       listEl.appendChild(row);
     }
-  }
-  document.getElementById('createVaultBtn').addEventListener('click', async ()=>{
-    const name=(document.getElementById('newVaultName').value || 'Vault '+new Date().toLocaleDateString()).trim(); if(!name) return;
-    const pass=prompt('Enter your App Lock passcode to create this vault:')||''; const salt=crypto.getRandomValues(new Uint8Array(16));
-    const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),{name:'PBKDF2'},false,['deriveKey']);
-    const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'}, base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
-    const id=Math.random().toString(36).slice(2)+Date.now().toString(36); const created=now();
-    const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify([])));
-    writeVaultRaw(id,{v:1, iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), salt:btoa(String.fromCharCode(...salt)), ts:created});
-    const idx=readIndex(); idx.push({id,name,created,updated:created,count:0}); writeIndex(idx);
-    unlocked.set(id,{key,data:[]}); sessionStorage.setItem(ACTIVE_KEY,id);
-    document.getElementById('newVaultName').value=''; render();
+  }  document.getElementById('createVaultBtn').addEventListener('click', async ()=>{
+    const name=(document.getElementById('newVaultName').value || 'Vault '+new Date().toLocaleDateString()).trim(); 
+    if(!name) return;
+    const pass=prompt('Enter your App Lock passcode to create this vault:')||''; 
+    const salt=crypto.getRandomValues(new Uint8Array(16));
+
+    const base=await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(pass),
+      {name:'PBKDF2'},
+      false,
+      ['deriveKey']
+    );
+    const key=await crypto.subtle.deriveKey(
+      {name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},
+      base,
+      {name:'AES-GCM',length:256},
+      false,
+      ['encrypt','decrypt']
+    );
+
+    const id=Math.random().toString(36).slice(2)+Date.now().toString(36); 
+    const created=now();
+    const iv=crypto.getRandomValues(new Uint8Array(12)); 
+    const ct=await crypto.subtle.encrypt(
+      {name:'AES-GCM',iv},
+      key,
+      new TextEncoder().encode(JSON.stringify([]))
+    );
+
+    writeVaultRaw(id,{
+      v:1, 
+      iv:btoa(String.fromCharCode(...iv)), 
+      data:btoa(String.fromCharCode(...new Uint8Array(ct))), 
+      salt:btoa(String.fromCharCode(...salt)), 
+      ts:created
+    });
+
+    const idx=readIndex(); 
+    idx.push({id,name,created,updated:created,count:0}); 
+    writeIndex(idx);
+
+    unlocked.set(id,{key,data:[]}); 
+    sessionStorage.setItem(ACTIVE_KEY,id);
+    document.getElementById('newVaultName').value=''; 
+    render();
   });
+
   window.blackoutLogEncryption = async function(entry){
     try{
       const active=sessionStorage.getItem(ACTIVE_KEY);
-      if(!active || !unlocked.has(active)){ noticeEl.classList.add('warn'); noticeEl.textContent='No active vault unlocked. Unlock a vault and click “Set Active” to enable auto-logging.'; return; }
-      const rec=unlocked.get(active); rec.data.push(Object.assign({when:Date.now(),notes:''},entry||{}));
-      const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},rec.key,new TextEncoder().encode(JSON.stringify(rec.data)));
-      const raw=readVaultRaw(active); writeVaultRaw(active,{v:1, iv:btoa(String.fromCharCode(...iv)), data:btoa(String.fromCharCode(...new Uint8Array(ct))), salt:raw.salt, ts:Date.now()});
-      const idx=readIndex(); const meta=idx.find(x=>x.id===active); if(meta){ meta.updated=Date.now(); meta.count=rec.data.length; writeIndex(idx); }
-      noticeEl.classList.remove('warn'); noticeEl.textContent='Logged to active vault.'; render();
-    }catch(e){ console.error('[Vaults] log failed', e); }
+      if(!active || !unlocked.has(active)){
+        noticeEl.classList.add('warn'); 
+        noticeEl.textContent='No active vault unlocked. Unlock a vault and click “Set Active” to enable auto-logging.'; 
+        return; 
+      }
+      const rec=unlocked.get(active); 
+      rec.data.push(Object.assign({when:Date.now(),notes:''},entry||{}));
+
+      const iv=crypto.getRandomValues(new Uint8Array(12)); 
+      const ct=await crypto.subtle.encrypt(
+        {name:'AES-GCM',iv},
+        rec.key,
+        new TextEncoder().encode(JSON.stringify(rec.data))
+      );
+
+      const raw=readVaultRaw(active); 
+      writeVaultRaw(active,{
+        v:1, 
+        iv:btoa(String.fromCharCode(...iv)), 
+        data:btoa(String.fromCharCode(...new Uint8Array(ct))), 
+        salt:raw.salt, 
+        ts:Date.now()
+      });
+
+      const idx=readIndex(); 
+      const meta=idx.find(x=>x.id===active); 
+      if(meta){ 
+        meta.updated=Date.now(); 
+        meta.count=rec.data.length; 
+        writeIndex(idx); 
+      }
+      noticeEl.classList.remove('warn'); 
+      noticeEl.textContent='Logged to active vault.'; 
+      render();
+    }catch(e){ 
+      console.error('[Vaults] log failed', e); 
+    }
   };
   render();
 })();
@@ -702,7 +1013,12 @@ if(coverInput && coverPicker){
   const slides = Array.from(slidesWrap.querySelectorAll('.help-slide'));
   let idx = 0;
 
-  function renderDots(){ dotsWrap.innerHTML = slides.map((_,i)=>`<span class="dot ${i===idx?'active':''}" aria-hidden="true"></span>`).join(''); }
+  function renderDots(){
+    dotsWrap.innerHTML = slides.map((_,i)=>
+      `<span class="dot ${i===idx?'active':''}" aria-hidden="true"></span>`
+    ).join('');
+  }
+
   function show(i){
     idx = Math.max(0, Math.min(slides.length-1, i));
     slides.forEach((s,j)=> s.classList.toggle('active', j===idx));
@@ -710,37 +1026,46 @@ if(coverInput && coverPicker){
     btnNext.textContent = idx===slides.length-1 ? 'Done' : 'Next';
     renderDots();
   }
+
   function open(firstRun=false){
     modal.setAttribute('aria-hidden','false');
     modal.style.display = 'grid';
     document.body.style.overflow='hidden';
-    // focus modal first, then close button
     modal.focus({ preventScroll:true });
     if(firstRun) idx = 0;
     show(idx);
     btnClose.focus({ preventScroll:true });
   }
+
   function close(done=false){
     modal.setAttribute('aria-hidden','true');
     modal.style.display = 'none';
     document.body.style.overflow='';
     if(done) localStorage.setItem(LS_KEY, '1');
     btnOpen.focus({preventScroll:true});
-  }
-
+  }  // Wire tutorial buttons
   btnOpen.addEventListener('click', ()=> open(false));
   btnClose.addEventListener('click', ()=> close(false));
   btnSkip.addEventListener('click', ()=> close(true));
   btnBack.addEventListener('click', ()=> show(idx-1));
-  btnNext.addEventListener('click', ()=> { if(idx===slides.length-1) close(true); else show(idx+1); });
+  btnNext.addEventListener('click', ()=> { 
+    if(idx===slides.length-1) close(true); 
+    else show(idx+1); 
+  });
 
+  // Keyboard navigation
   modal.addEventListener('keydown', (e)=>{
     if(e.key==='Escape') close(false);
     if(e.key==='ArrowRight') show(idx+1);
     if(e.key==='ArrowLeft') show(idx-1);
   });
-  modal.addEventListener('click', (e)=>{ if(e.target===modal) close(false); });
 
+  // Click outside to close
+  modal.addEventListener('click', (e)=>{ 
+    if(e.target===modal) close(false); 
+  });
+
+  // First-run: auto show tutorial (if never completed)
   try {
     const firstRun = !localStorage.getItem(LS_KEY);
     if(firstRun) open(true);
@@ -750,143 +1075,8 @@ if(coverInput && coverPicker){
 })();
 </script>
 
-<!-- Particles loader: dynamic tuning + toggle + offline -->
-<script>
-(() => {
-  const TOGGLE_ID = 'particlesToggle';
-  const HOST_ID   = 'particles';
-  const LS_KEY    = 'blackout.particles.enabled';
-  const JS_PATH   = 'particles.min.js';
-  const CFG_PATH  = 'particlesjs-config.json';
-
-  const btn  = document.getElementById(TOGGLE_ID);
-  const host = document.getElementById(HOST_ID);
-  if (!btn || !host) return;
-
-  const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const isMobileUA     = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const memGiB         = navigator.deviceMemory || 0;
-  const dpr            = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-
-  function getPref(){ try { return localStorage.getItem(LS_KEY) === '1'; } catch { return false; } }
-  function setPref(v){ try { localStorage.setItem(LS_KEY, v ? '1' : '0'); } catch {} }
-
-  let enabled = getPref() && !prefersReduced;
-  let scriptLoaded = !!window.particlesJS;
-  let starting = false;
-
-  function applyParticlesClass(on){
-  document.body.classList.toggle('particles-on', !!on);
-}
-
-  function setButton() {
-    btn.textContent = 'Particles: ' + (enabled ? 'On' : 'Off');
-    btn.setAttribute('aria-pressed', String(enabled));
-  }
-
-  function tuneConfig(cfg) {
-    const baseCount  = cfg?.particles?.number?.value ?? 120;
-    const baseArea   = cfg?.particles?.number?.density?.value_area ?? 800;
-    const baseSpeed  = cfg?.particles?.move?.speed ?? 1;
-    const baseSize   = cfg?.particles?.size?.value ?? 3;
-
-    const area = Math.max(1, window.innerWidth * window.innerHeight);
-    const areaFactor = Math.sqrt(area / (1920 * 1080));
-    const memTier = memGiB >= 12 ? 3 : memGiB >= 8 ? 2 : memGiB >= 4 ? 1 : 0;
-
-    const isMobile = isMobileUA || area < 750 * 900;
-    const maxCount = isMobile ? 100 : [140, 180, 220, 260][memTier];
-    const maxSpeed = isMobile ? 1.0 : 2.2;
-    const maxSize  = isMobile ? 4.0 : 6.0;
-
-    const densityBased = Math.round((area / Math.max(20000, baseArea * 1.2)) / (dpr * 0.9));
-    let tunedCount = Math.min(maxCount, Math.max(25, Math.max(densityBased, Math.min(baseCount, maxCount))));
-
-    let tunedSpeed = Math.min(maxSpeed, baseSpeed * (isMobile ? 0.5 : 0.9) * (0.85 + 0.25 * areaFactor));
-    let tunedSize  = Math.min(maxSize,  baseSize  * (isMobile ? 0.6 : 0.9));
-
-    cfg.particles ??= {};
-    cfg.particles.number ??= {};
-    cfg.particles.number.value = tunedCount;
-    (cfg.particles.number.density ??= {}).enable = true;
-    (cfg.particles.move ??= {}).enable = true;
-    cfg.particles.move.speed = tunedSpeed;
-    (cfg.particles.size ??= {}).value = tunedSize;
-
-    cfg.interactivity ??= {};
-    cfg.interactivity.events ??= {};
-    if (isMobile) {
-      cfg.interactivity.events.onhover = { enable: false };
-      cfg.interactivity.events.onclick = { enable: false };
-    }
-
-    if (typeof cfg.particles.opacity?.value === 'number') {
-      cfg.particles.opacity.value = Math.min(cfg.particles.opacity.value, 0.45);
-    }
-    return cfg;
-  }
-
-  function destroyParticles() {
-    try {
-      if (window.pJSDom && window.pJSDom.length) {
-        window.pJSDom.forEach(p => p?.pJS?.fn?.vendors?.destroypJS?.());
-        window.pJSDom.length = 0;
-      }
-      host.querySelectorAll('canvas').forEach(c => c.remove());
-    } catch {}
-  }
-
-  async function startParticles() {
-    if (starting || prefersReduced) return;
-    starting = true;
-
-    try {
-      if (!scriptLoaded) {
-        await new Promise((res, rej) => {
-          const s = document.createElement('script');
-          s.src = JS_PATH; s.async = true;
-          s.onload = () => { scriptLoaded = true; res(); };
-          s.onerror = () => rej(new Error('Failed to load particles.min.js'));
-          document.head.appendChild(s);
-        });
-      }
-
-      const resp = await fetch(CFG_PATH, { cache: 'force-cache' });
-      const userCfg = await resp.json();
-      const tuned   = tuneConfig(userCfg);
-
-      destroyParticles();
-      window.particlesJS(HOST_ID, tuned);
-      applyParticlesClass(true);
-    } catch (e) {
-      console.debug('[particles] init failed:', e);
-      enabled = false; setPref(false); setButton();
-    } finally {
-      starting = false;
-    }
-  }
-
-  function stopParticles() {
-    destroyParticles();
-    applyParticlesClass(false);
-  }
-
-  btn.addEventListener('click', () => {
-    enabled = !enabled;
-    setPref(enabled);
-    setButton();
-    applyParticlesClass(enabled);
-    enabled ? startParticles() : stopParticles();
-  });
-
-  setButton();
-  applyParticlesClass(enabled);
-  if (enabled) startParticles();
-
-  // Retune on resize/orientation
-  let t; addEventListener('resize', () => { if (!enabled) return; clearTimeout(t); t=setTimeout(startParticles,250); });
-})();
-</script>
+<!-- Particle background loader -->
+<script src="particles-loader.js" defer></script>
 
 </body>
 </html>
