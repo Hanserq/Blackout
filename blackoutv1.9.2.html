@@ -76,13 +76,8 @@
   .cover-picker .upload-text{font-size:.9
   }
   /* Particles host */
-  #particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
-  .particles-toggle{
-    position:fixed;top:14px;right:120px;z-index:60;
-    background:#222842;border:1px solid #2f3350;color:#e9ebf2;
-    border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer
-  }
-  .particles-toggle:hover{background:#2a2f4a}
+  #particles { position: fixed; inset: 0; z-index: 1; pointer-events: auto; }
+
   .help-btn{position:fixed;top:14px;right:16px;z-index:60;background:#222842;border:1px solid #2f3350;
     color:#e9ebf2;border-radius:14px;padding:10px 14px;font-weight:700;cursor:pointer}
   .help-btn:hover{background:#2a2f4a}
@@ -124,7 +119,6 @@
   .vtable{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:14px}.vtable th{text-align:left;color:#a6acc3;font-weight:600}.vtable td{vertical-align:top}
   .hint{color:#a6acc3;font-size:12px}.warn{color:#f39c9c;font-size:12px}
 
-  #particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
 </style>
 
 <script defer src="argon2.config.js"></script>
@@ -132,8 +126,7 @@
 </head>
 <body>
 
-<!-- Particles toggle + host -->
-<button id="particlesToggle" class="particles-toggle" type="button" aria-pressed="false">Particles: Off</button>
+<!-- Particles host -->
 <div id="particles" aria-hidden="true"></div>
 
 <!-- Help trigger -->
@@ -1076,6 +1069,8 @@ if(coverInput && coverPicker){
 </script>
 
 <!-- Particle background loader -->
+ <script src="particles.min.js" defer></script>
+
 <script src="particles-loader.js" defer></script>
 
 </body>
