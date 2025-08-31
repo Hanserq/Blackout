@@ -1,5 +1,5 @@
 // service-worker.js
-const VERSION = 'blackout-shell-v17';
+const VERSION = 'blackout-shell-v18';
 
 const SCOPE = (self.registration && self.registration.scope)
   ? new URL(self.registration.scope).pathname.replace(/\/$/, '')
