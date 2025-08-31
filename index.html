@@ -7,13 +7,7 @@
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.webmanifest" />
 
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Blackout • Lock Gate</title>
-  <meta name="theme-color" content="#111111" />
-  <link rel="manifest" href="manifest.webmanifest" />
-
-  <!-- REPLACE the old CSP with this block -->
+  <!-- CSP -->
   <meta http-equiv="Content-Security-Policy"
         content="
           default-src 'self';
@@ -30,25 +24,54 @@
   <style>
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;background:#0b0b0c;color:#e7e7ea;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+    body{margin:0;background:#0b0b0c;color:#e7e7ea;
+         font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+         -webkit-tap-highlight-color:transparent;
+         position:relative; z-index:0;}
+
     .hidden{display:none!important}
-    .overlay{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.65);backdrop-filter:saturate(110%) blur(6px);z-index:9999}
-    .lock-card{width:min(560px,92vw);background:#18181b;border:1px solid rgba(255,255,255,.06);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,.45);padding:22px}
+    .overlay{position:fixed;inset:0;display:grid;place-items:center;padding:24px;
+             background:rgba(0,0,0,.65);backdrop-filter:saturate(110%) blur(6px);z-index:5}
+    .lock-card{width:min(560px,92vw);background:#18181b;border:1px solid rgba(255,255,255,.06);
+               border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,.45);padding:22px;z-index:10}
     .lock-title{font-weight:800;font-size:clamp(20px,3vw,28px);letter-spacing:-.02em;margin:4px 2px 2px}
     .lock-sub{opacity:.85;margin:0 2px 16px;font-size:14px}
     .pin-form{display:grid;gap:14px}
     .pin-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%}
-    .pin{appearance:none;width:100%;height:clamp(54px,9.5vw,64px);background:#111113;border:2px solid rgba(255,255,255,.08);border-radius:16px;color:#f5f5f6;text-align:center;font-size:clamp(24px,5.5vw,28px);line-height:1;letter-spacing:.2em;padding:0;outline:none;transition:border-color .15s,box-shadow .15s}
+    .pin{appearance:none;width:100%;height:clamp(54px,9.5vw,64px);background:#111113;
+         border:2px solid rgba(255,255,255,.08);border-radius:16px;color:#f5f5f6;text-align:center;
+         font-size:clamp(24px,5.5vw,28px);line-height:1;letter-spacing:.2em;padding:0;outline:none;
+         transition:border-color .15s,box-shadow .15s}
     .pin:focus{border-color:#d946ef;box-shadow:0 0 0 3px rgba(217,70,239,.18)}
-    .text{width:100%;height:52px;background:#111113;border:2px solid rgba(255,255,255,.08);border-radius:16px;color:#f5f5f6;font-size:16px;padding:0 14px;outline:none}
+    .text{width:100%;height:52px;background:#111113;border:2px solid rgba(255,255,255,.08);
+          border-radius:16px;color:#f5f5f6;font-size:16px;padding:0 14px;outline:none}
     .text:focus{border-color:#d946ef;box-shadow:0 0 0 3px rgba(217,70,239,.18)}
-    .btn{height:52px;border:0;border-radius:16px;cursor:pointer;color:#e7e7ea;background:#232326;font-weight:600;font-size:16px;width:100%}
+    .btn{height:52px;border:0;border-radius:16px;cursor:pointer;color:#e7e7ea;
+         background:#232326;font-weight:600;font-size:16px;width:100%}
     .btn.danger{background:#3a1f23}
     .first-time{display:grid;gap:12px;margin-top:6px}
     .muted{font-size:12px;opacity:.7;text-align:center}
+
+    /* Particles host */
+    #particles { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+ 
+
+    /* Transparent lock card when particles enabled */
+    body.particles-on .lock-card{
+      background:rgba(24,24,27,0.35);border-color:rgba(255,255,255,.15);
+      backdrop-filter:blur(8px);
+    }
+    body.particles-on .overlay {
+      background: rgba(0,0,0,0.25); /* even more glassy when particles are on */
+      backdrop-filter: blur(8px) saturate(110%);
+    }
   </style>
 </head>
 <body>
+  <!-- Particles toggle + host -->
+  
+  <div id="particles" aria-hidden="true"></div>
+
   <div id="lockOverlay" class="overlay hidden" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="lock-card">
       <div class="lock-title">App Locked</div>
@@ -56,10 +79,10 @@
 
       <form id="unlockForm" class="pin-form" autocomplete="one-time-code" novalidate>
         <div class="pin-row" id="pinRow">
-          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="pin" aria-label="Digit 1">
-          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="pin" aria-label="Digit 2">
-          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="pin" aria-label="Digit 3">
-          <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="pin" aria-label="Digit 4">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin" aria-label="Digit 1">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin" aria-label="Digit 2">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin" aria-label="Digit 3">
+          <input type="password" inputmode="numeric" maxlength="1" class="pin" aria-label="Digit 4">
         </div>
         <button type="submit" class="btn">Unlock</button>
         <p id="status" class="muted" role="status" aria-live="polite"></p>
@@ -68,8 +91,8 @@
       <div id="firstTime" class="first-time hidden">
         <p class="muted">No passcode found. Create one to continue.</p>
         <form id="setupForm" class="first-time" autocomplete="off" novalidate>
-          <input id="newPin"  type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="text" placeholder="New 4-digit PIN">
-          <input id="newPin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="text" placeholder="Confirm PIN">
+          <input id="newPin"  type="password" inputmode="numeric" maxlength="4" class="text" placeholder="New 4-digit PIN">
+          <input id="newPin2" type="password" inputmode="numeric" maxlength="4" class="text" placeholder="Confirm PIN">
           <button type="submit" class="btn">Set Passcode</button>
         </form>
         <button id="resetLock" class="btn danger">Reset Lock (clear)</button>
@@ -77,8 +100,8 @@
     </div>
   </div>
 
+  <!-- Lock logic -->
   <script>
-    // ===== Lock logic (redirect mode) =====
     const MODE='redirect';
     const MAIN_URL='blackoutv1.9.2.html';
     const LS_KEY='blackout.lock.hash';
@@ -111,7 +134,6 @@
       const newPin=document.getElementById('newPin');
       const newPin2=document.getElementById('newPin2');
       const resetLock=document.getElementById('resetLock');
-      const btnLock=document.getElementById('btnLock');
       const statusEl=document.getElementById('status');
 
       const getHash=()=>localStorage.getItem(LS_KEY);
@@ -173,8 +195,6 @@
         if(confirm('Clear saved lock?')){ localStorage.removeItem(LS_KEY); showOverlay(true); }
       });
 
-      btnLock?.addEventListener('click',()=> showOverlay(!!getHash()===false));
-
       if(getHash()) showOverlay(false); else showOverlay(true);
     })();
   </script>
@@ -185,14 +205,8 @@
       window.addEventListener('load', async () => {
         try {
           const reg = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
-
-          // Check for updates hourly
-          setInterval(() => { reg.update().catch(() => {}); }, 60 * 60 * 1000);
-
-          // If a SW is waiting, tell it to skip waiting
+          setInterval(() => { reg.update().catch(() => {}); }, 60*60*1000);
           if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-          // When a new SW is found and installed, tell it to skip waiting
           reg.addEventListener('updatefound', () => {
             const sw = reg.installing;
             if (!sw) return;
@@ -202,16 +216,27 @@
               }
             });
           });
-
-          // Reload once when the new SW becomes the controller
           navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!window.__swReloaded) { window.__swReloaded = true; location.reload(); }
           });
-        } catch (err) {
-          console.debug('SW register failed:', err);
-        }
+        } catch (err) { console.debug('SW register failed:', err); }
       });
     }
   </script>
+
+<script src="particles.min.js"></script>
+<script>
+  // Always start particles on lock screen
+  (async () => {
+    try {
+      const resp = await fetch("particlesjs-config.json", { cache: "force-cache" });
+      const cfg = await resp.json();
+      window.particlesJS("particles", cfg);
+      document.body.classList.add("particles-on");
+    } catch (e) {
+      console.error("[particles] failed to init:", e);
+    }
+  })();
+</script>
 </body>
 </html>
