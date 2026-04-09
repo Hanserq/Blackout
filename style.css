@@ -1,0 +1,344 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #03070a;
+  --panel: rgba(15, 22, 25, 0.65);
+  --muted: #8a9ba8;
+  --accent: #00ff88;
+  --accent-hover: #00cc6a;
+  --danger: #ff4757;
+  --glass: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: radial-gradient(circle at 50% -20%, #0c1b26 0%, var(--bg) 100%);
+  color: #e0e8eb;
+  background-attachment: fixed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.app {
+  max-width: 1060px;
+  margin: 6vh auto;
+  padding: 40px;
+  border-radius: 24px;
+  background: var(--panel);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg, #ffffff, #a0aec0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+p.lead {
+  margin: 0 0 32px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 800px;
+  font-weight: 300;
+}
+
+.row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: rgba(10, 15, 20, 0.4);
+  padding: 32px;
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  flex: 1;
+  min-width: 320px;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.3s ease;
+}
+
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+input[type="file"] {
+  color: var(--muted);
+  font-size: 14px;
+  width: 100%;
+}
+
+input[type="file"]::file-selector-button {
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 16px;
+  font-family: 'Outfit';
+  font-weight: 500;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+input[type="text"], input[type="password"], select {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+input[type="text"]:focus, input[type="password"]:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.15);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+button {
+  padding: 14px 24px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--accent);
+  color: #003311;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0, 255, 136, 0.2);
+  font-family: 'Outfit';
+}
+
+button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 255, 136, 0.3);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+button.ghost {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: #e0e8eb;
+  box-shadow: none;
+}
+
+button.ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.muted { color: var(--muted); font-size: 14px; }
+.small { font-size: 13px; }
+
+.output {
+  word-break: break-all;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 16px;
+  border-radius: 12px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  border: 1px solid var(--glass-border);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+
+.hp { height: 20px; }
+
+.row2 {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.smallbtn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.flexrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+/* Lock overlay */
+.lock-overlay {
+  position: fixed;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(3, 7, 10, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease, visibility 0.5s;
+}
+
+.lock-card {
+  width: 440px;
+  background: var(--panel);
+  padding: 48px 40px;
+  border-radius: 28px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  text-align: center;
+  transform: translateY(0) scale(1);
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  margin: 20px;
+}
+
+.lock-overlay[aria-hidden="true"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.lock-overlay[aria-hidden="true"] .lock-card {
+  transform: translateY(30px) scale(0.92);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 36px;
+  color: #fff;
+  margin-bottom: 8px;
+  letter-spacing: -1px;
+}
+
+.brand span {
+  color: var(--accent);
+}
+
+.lock-sub {
+  color: var(--muted);
+  margin-bottom: 28px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.note {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 28px;
+  line-height: 1.5;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 8px;
+  display: none;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .app {
+    margin: 0;
+    border-radius: 0;
+    padding: 24px 16px;
+    box-shadow: none;
+    border-left: none;
+    border-right: none;
+  }
+  
+  .card {
+    min-width: 100%;
+    padding: 24px 16px;
+  }
+  
+  h1 { font-size: 28px; }
+  
+  input[type="text"], input[type="password"], select, button {
+    padding: 16px 18px; /* Larger touch targets */
+    font-size: 16px;
+  }
+  
+  .flexrow {
+    flex-direction: column;
+  }
+  
+  .flexrow button {
+    width: 100%;
+  }
+
+  .row2 button {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .lock-card {
+    padding: 40px 24px;
+    width: 100%;
+    margin: 16px;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+  .controls button {
+    width: 100%;
+  }
+}

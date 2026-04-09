@@ -3,62 +3,27 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Blackout v1.9.2 — Encrypt→PNG (default)</title>
-<style>
-  :root{
-    --bg:#0b0f12; --panel:#0f1619; --muted:#9aa6ad; --accent:#7bd389;
-    --danger:#ff6b6b; --glass: rgba(255,255,255,0.03);
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  }
-  html,body{height:100%;margin:0;background:linear-gradient(180deg,#071019 0%, #081219 100%); color:#e6eef1;}
-  .app{max-width:980px;margin:32px auto;padding:24px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow:0 8px 30px rgba(2,6,10,0.6);}
-  h1{margin:0 0 8px;font-size:20px}
-  p.lead{margin:0 0 18px;color:var(--muted)}
-  .row{display:flex;gap:16px;flex-wrap:wrap}
-  .card{background:var(--panel);padding:16px;border-radius:12px;flex:1;min-width:260px}
-  label{display:block;font-size:12px;color:var(--muted);margin-bottom:8px}
-  input[type="file"]{color:transparent}
-  input[type="text"], input[type="password"], select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
-  button{padding:10px 12px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent),#4fd2b0);color:#042;cursor:pointer;font-weight:600}
-  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
-  .muted{color:var(--muted);font-size:13px}
-  .small{font-size:13px}
-  .output{word-break:break-all;background:var(--glass);padding:10px;border-radius:8px;margin-top:10px;color:var(--muted)}
-  .footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--muted);font-size:13px}
-  .hint{color:var(--muted);font-size:13px;margin-top:8px}
-  .danger{color:var(--danger)}
-  /* Lock overlay */
-  .lock-overlay{position:fixed;left:0;top:0;right:0;bottom:0;background:linear-gradient(180deg, rgba(2,6,10,0.85), rgba(2,6,10,0.95));backdrop-filter: blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999}
-  .lock-card{width:420px;background:linear-gradient(180deg,#071017,#081219);padding:26px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 12px 40px rgba(2,6,10,0.6);text-align:center}
-  .brand{font-weight:700;font-size:18px;color:var(--accent);margin-bottom:6px}
-  .lock-sub{color:var(--muted);margin-bottom:18px}
-  .hp{height:8px}
-  .controls{display:flex;gap:8px}
-  .note{font-size:12px;color:var(--muted);margin-top:12px}
-  .kbd{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:6px;font-weight:600}
-  .row2{display:flex;gap:10px;align-items:center}
-  .smallbtn{padding:6px 8px;border-radius:8px;font-size:13px}
-  .flexrow{display:flex;gap:8px;align-items:center}
-</style>
+<title>Blackout v2.0.0 — Encrypt & Compress → PNG</title>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <div class="app" id="app">
-  <h1>Blackout — Encrypt → PNG (default)</h1>
-  <p class="lead">Now encrypts and hides your encrypted container inside a PNG by default (black cover if none chosen). Toggle "Save raw .blackout" to get the raw container.</p>
+  <h1>Blackout <span>v2.0</span></h1>
+  <p class="lead">Deeply compressed steganography tool. Encrypt data and securely hide within a PNG. Your workflow operates exclusively on your device—no cloud backups.</p>
 
   <div class="row">
     <div class="card">
       <label>File (input)</label>
       <input id="fileIn" type="file" />
       <div class="hp"></div>
-      <label>Password</label>
-      <input id="password" type="password" placeholder="Enter password" />
+      <label>File Encryption Password</label>
+      <input id="password" type="password" placeholder="Enter secure payload key" />
       <div class="hp"></div>
       <label>Mode</label>
       <select id="mode">
-        <option value="encrypt">Encrypt & Hide → PNG (default)</option>
-        <option value="encrypt-raw">Encrypt → raw .blackout (advanced)</option>
-        <option value="decrypt">Decrypt (from .blackout or camo PNG)</option>
+        <option value="encrypt">Encrypt, Compress & Hide → PNG (default)</option>
+        <option value="encrypt-raw">Encrypt & Compress → raw .blackout (advanced)</option>
+        <option value="decrypt">Decrypt & Decompress (from .blackout or camo PNG)</option>
         <option value="camo">Embed existing .blackout into PNG (camo)</option>
         <option value="decamo">Extract from Camo PNG</option>
       </select>
@@ -66,511 +31,74 @@
       <div class="hp"></div>
       <label id="coverLabel" style="display:none">Cover PNG (for camo / encrypt)</label>
       <input id="coverIn" type="file" accept="image/png" style="display:none" />
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="makeBlackCover" class="ghost smallbtn" style="display:none">Make Black PNG</button>
-        <button id="useDemoCover" class="ghost smallbtn" style="display:none">Use Demo Cover</button>
+      <div class="row2" style="margin-top:12px">
+        <button id="makeBlackCover" class="ghost smallbtn" style="display:none">Forge Black PNG</button>
+        <button id="useDemoCover" class="ghost smallbtn" style="display:none">Load Demo Cover</button>
       </div>
 
       <div class="hp"></div>
-      <label>Decrypt filename (optional)</label>
-      <input id="decryptName" type="text" placeholder="Leave empty to use original filename stored in container" />
+      <label>Decrypt File Output Name (optional)</label>
+      <input id="decryptName" type="text" placeholder="Leave empty to restore original filename" />
 
       <div class="hp"></div>
-      <div style="display:flex;gap:8px">
-        <button id="goBtn">Go</button>
-        <button id="downloadBtn" class="ghost" style="display:none">Download</button>
-        <button id="clearBtn" class="ghost">Clear</button>
+      <div class="flexrow" style="margin-top:20px;">
+        <button id="goBtn">Execute Protocol</button>
+        <button id="downloadBtn" class="ghost" style="display:none">Export Artifact</button>
+        <button id="clearBtn" class="ghost">Wipe Cache</button>
       </div>
-      <div class="hint">Default behavior: encrypt & embed into PNG. Files saved as <code>yourcover.png</code>. Warning: some apps/editors may strip chunks when editing or recompressing images.</div>
+      <div class="hint">Warning: some apps or image optimizers may strip hidden payload chunks when editing or recompressing Camo PNG images. Keep backups of your primary assets.</div>
       <div id="status" class="output" style="display:none"></div>
     </div>
 
     <div class="card">
-      <label>Operations</label>
+      <label>System Diagnostics & Ops</label>
       <div class="row2">
-        <button id="reencryptBtn" class="ghost">Nested Re-encrypt</button>
-        <button id="inspectBtn" class="ghost">Inspect PNG chunks</button>
-        <button id="metaInspectBtn" class="ghost">Inspect container metadata</button>
+        <button id="reencryptBtn" class="ghost smallbtn">Nested Re-encrypt</button>
+        <button id="inspectBtn" class="ghost smallbtn">Inspect PNG Payload</button>
+        <button id="metaInspectBtn" class="ghost smallbtn">Verify Metadata</button>
       </div>
       <div class="hp"></div>
-      <label>Last output</label>
-      <div id="lastOut" class="output">No output yet.</div>
+      <label>Console Output</label>
+      <div id="lastOut" class="output" style="min-height: 100px;">Awaiting instructions...</div>
       <div class="footer">
-        <div class="muted">blackoutv1.9.2 (png-default)</div>
-        <div class="muted">Ready for GitHub Pages</div>
+        <div class="muted">System status: Online</div>
+        <div class="muted" style="cursor: pointer; text-decoration: underline;" id="deviceResetBtn">Reset Device Lock</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Lock overlay (merged lock screen) -->
+<!-- Lock overlay -->
 <div id="lock" class="lock-overlay" aria-hidden="false">
   <div class="lock-card">
-    <div class="brand">Blackout</div>
-    <div class="lock-sub">Enter unlock pass to reveal the app</div>
-    <input id="unlockPass" type="password" placeholder="Unlock pass" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit" />
-    <div class="hp"></div>
-    <div class="controls">
-      <button id="unlockBtn">Unlock</button>
-      <button id="demoBtn" class="ghost">Use Demo Mode</button>
+    <div class="brand">Black<span>out</span></div>
+    
+    <!-- Setup Mode -->
+    <div id="setupMode" style="display: none;">
+      <div class="lock-sub">Initialize device security. Set a master passcode to protect this tool from unauthorized access on this device.</div>
+      <input id="setupPass" type="password" placeholder="Create Device Passcode" />
+      <input id="setupPassConfirm" type="password" placeholder="Confirm Device Passcode" style="margin-top: 12px;" />
+      <div id="setupError" class="error-text"></div>
+      <div class="controls" style="margin-top: 24px;">
+        <button id="setPassBtn">Set Passcode & Enter</button>
+      </div>
     </div>
-    <div class="note">This lock is a UI overlay — passwords are not saved. Demo mode preloads sample files.</div>
+
+    <!-- Unlock Mode -->
+    <div id="unlockMode" style="display: none;">
+      <div class="lock-sub">Local terminal locked. Enter your device passcode to access the interface.</div>
+      <input id="unlockPass" type="password" placeholder="Device Passcode" />
+      <div id="unlockError" class="error-text"></div>
+      <div class="controls" style="margin-top: 24px;">
+        <button id="unlockBtn">Decrypt Terminal</button>
+        <button id="forgotBtn" class="ghost">Forgot?</button>
+      </div>
+    </div>
+
+    <div class="note">This security protocol saves a hashed passcode locally in your browser. Forgetting it requires a full reset, wiping configuration data for this domain.</div>
   </div>
 </div>
 
-<script>
-/* Blackout: encrypt->embed PNG default
-   - Plaintext before encryption: metaLen(4) || metaJSON || fileBytes
-   - Encrypted container: BLKOUT01 || salt(16) || iv(12) || ciphertext
-   - When encrypt/hide: produce a PNG with chunk 'bLoK' inserted before IEND and save as .png
-   - Optionally, user can choose "Encrypt → raw .blackout" to get the raw container instead.
-*/
-
-const UI = {
-  fileIn: document.getElementById('fileIn'),
-  password: document.getElementById('password'),
-  mode: document.getElementById('mode'),
-  goBtn: document.getElementById('goBtn'),
-  status: document.getElementById('status'),
-  lastOut: document.getElementById('lastOut'),
-  downloadBtn: document.getElementById('downloadBtn'),
-  clearBtn: document.getElementById('clearBtn'),
-  reencryptBtn: document.getElementById('reencryptBtn'),
-  inspectBtn: document.getElementById('inspectBtn'),
-  metaInspectBtn: document.getElementById('metaInspectBtn'),
-  coverIn: document.getElementById('coverIn'),
-  coverLabel: document.getElementById('coverLabel'),
-  makeBlackCover: document.getElementById('makeBlackCover'),
-  useDemoCover: document.getElementById('useDemoCover'),
-  decryptName: document.getElementById('decryptName'),
-};
-
-function logStatus(txt, isError=false) {
-  UI.status.style.display='block';
-  UI.status.textContent = txt;
-  UI.status.style.color = isError ? '#ffb3b3' : '';
-}
-
-function hideStatus(){ UI.status.style.display='none' }
-
-function readU32(bytes, off) { return (bytes[off]<<24) | (bytes[off+1]<<16) | (bytes[off+2]<<8) | (bytes[off+3]); }
-function writeU32(v) { return new Uint8Array([(v>>>24)&255,(v>>>16)&255,(v>>>8)&255,v&255]); }
-
-async function deriveKey(password, salt, iterations=150000) {
-  const enc = new TextEncoder();
-  const pwKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-  const key = await crypto.subtle.deriveKey(
-    {name:'PBKDF2', salt: salt, iterations: iterations, hash:'SHA-256'},
-    pwKey,
-    {name:'AES-GCM', length: 256},
-    true,
-    ['encrypt','decrypt']
-  );
-  return key;
-}
-
-function randBytes(n){ const b = new Uint8Array(n); crypto.getRandomValues(b); return b; }
-
-async function encryptBytes(plainBytes, password) {
-  const salt = randBytes(16);
-  const key = await deriveKey(password, salt);
-  const iv = randBytes(12);
-  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, plainBytes);
-  const magic = new TextEncoder().encode('BLKOUT01');
-  const out = new Uint8Array(magic.byteLength + salt.length + iv.length + ct.byteLength);
-  let off=0;
-  out.set(magic, off); off+=magic.byteLength;
-  out.set(salt, off); off+=salt.length;
-  out.set(iv, off); off+=iv.length;
-  out.set(new Uint8Array(ct), off);
-  return out.buffer;
-}
-
-async function decryptBytes(containerBuf, password) {
-  const container = new Uint8Array(containerBuf);
-  const magic = new TextEncoder().encode('BLKOUT01');
-  if (container.length < magic.length + 16 + 12) throw new Error('container too small');
-  for (let i=0;i<magic.length;i++) if (container[i] !== magic[i]) throw new Error('invalid magic header');
-  let off = magic.length;
-  const salt = container.slice(off, off+16); off+=16;
-  const iv = container.slice(off, off+12); off+=12;
-  const ct = container.slice(off);
-  const key = await deriveKey(password, salt);
-  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:iv}, key, ct);
-  return pt;
-}
-
-// build plaintext with metadata (name, type, size)
-async function buildPlainWithMetadata(file) {
-  const ab = await fileToArrayBuffer(file);
-  const meta = { name: file.name, type: file.type || 'application/octet-stream', size: file.size, createdAt: (new Date()).toISOString() };
-  const metaStr = JSON.stringify(meta);
-  const metaBytes = new TextEncoder().encode(metaStr);
-  const header = writeU32(metaBytes.length);
-  const out = new Uint8Array(4 + metaBytes.length + ab.byteLength);
-  let p=0;
-  out.set(header, p); p+=4;
-  out.set(metaBytes, p); p+=metaBytes.length;
-  out.set(new Uint8Array(ab), p);
-  return out.buffer;
-}
-
-function parsePlainWithMetadata(plainBuf) {
-  const bytes = new Uint8Array(plainBuf);
-  if (bytes.length < 4) throw new Error('plaintext too small for metadata');
-  const metaLen = readU32(bytes, 0);
-  if (metaLen < 0 || metaLen > bytes.length - 4) throw new Error('invalid metadata length');
-  const metaBytes = bytes.slice(4, 4+metaLen);
-  const metaStr = new TextDecoder().decode(metaBytes);
-  let meta = {};
-  try { meta = JSON.parse(metaStr); } catch (e) { meta = {name:'output', type:'application/octet-stream'}; }
-  const fileBytes = bytes.slice(4+metaLen);
-  return {meta, fileBytes};
-}
-
-// PNG helpers (insert/extract chunk bLoK)
-function isPng(bytes) {
-  if (bytes.length < 8) return false;
-  const sig = [137,80,78,71,13,10,26,10];
-  for (let i=0;i<8;i++) if (bytes[i] !== sig[i]) return false;
-  return true;
-}
-
-function insertPngCamo(pngBytes, payloadBytes) {
-  if (!isPng(pngBytes)) throw new Error('not a PNG');
-  let off = 8;
-  while (off + 8 <= pngBytes.length) {
-    const len = readU32(pngBytes, off);
-    const type = String.fromCharCode(...pngBytes.slice(off+4, off+8));
-    const next = off + 8 + len + 4;
-    if (next > pngBytes.length) throw new Error('malformed PNG');
-    if (type === 'IEND') {
-      const typeBytes = new TextEncoder().encode('bLoK');
-      const lenBytes = writeU32(payloadBytes.length);
-      const crcInput = new Uint8Array(typeBytes.length + payloadBytes.length);
-      crcInput.set(typeBytes,0); crcInput.set(payloadBytes, typeBytes.length);
-      const crc = crc32(crcInput);
-      const crcBytes = writeU32(crc);
-      const head = pngBytes.slice(0, off);
-      const tail = pngBytes.slice(off);
-      const newBytes = new Uint8Array(head.length + 4 + 4 + payloadBytes.length + 4 + tail.length);
-      let p=0;
-      newBytes.set(head, p); p+=head.length;
-      newBytes.set(lenBytes, p); p+=4;
-      newBytes.set(typeBytes, p); p+=4;
-      newBytes.set(payloadBytes, p); p+=payloadBytes.length;
-      newBytes.set(crcBytes, p); p+=4;
-      newBytes.set(tail, p);
-      return newBytes;
-    }
-    off = next;
-  }
-  throw new Error('IEND not found');
-}
-
-function extractPngCamo(pngBytes) {
-  if (!isPng(pngBytes)) throw new Error('not a PNG');
-  let off=8;
-  while (off + 8 <= pngBytes.length) {
-    const len = readU32(pngBytes, off);
-    const type = String.fromCharCode(...pngBytes.slice(off+4, off+8));
-    const dataStart = off+8;
-    const next = dataStart + len + 4;
-    if (next > pngBytes.length) throw new Error('malformed PNG');
-    if (type === 'bLoK') {
-      return pngBytes.slice(dataStart, dataStart+len);
-    }
-    off = next;
-  }
-  throw new Error('no camo chunk found');
-}
-
-// CRC32 (IEEE)
-function crc32(buf) {
-  let table = crc32.table;
-  if (!table) {
-    table = new Uint32Array(256);
-    for (let i=0;i<256;i++) {
-      let c=i;
-      for (let k=0;k<8;k++) c = (c & 1) ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
-      table[i]=c>>>0;
-    }
-    crc32.table = table;
-  }
-  let crc = 0xFFFFFFFF;
-  for (let i=0;i<buf.length;i++) {
-    crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xFF];
-  }
-  return (~crc) >>> 0;
-}
-
-function fileToArrayBuffer(file) {
-  return new Promise((res, rej)=>{
-    const r = new FileReader();
-    r.onload = ()=> res(r.result);
-    r.onerror = ()=> rej(r.error);
-    r.readAsArrayBuffer(file);
-  });
-}
-
-function saveAsFile(buf, filename, mimeType) {
-  const blob = new Blob([buf], {type: mimeType || 'application/octet-stream'});
-  const url = URL.createObjectURL(blob);
-  UI.downloadBtn.style.display='inline-block';
-  UI.downloadBtn.onclick = ()=> {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-  UI.lastOut.textContent = filename + ' (ready to download)';
-}
-
-// black PNG generator for cover
-function makeBlackPngBlob(w=1024, h=1024) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0,0,w,h);
-  return new Promise((res) => c.toBlob(b=>res(b), 'image/png'));
-}
-
-function setFileInputFromBlob(inputEl, blob, filename) {
-  const f = new File([blob], filename, {type: 'image/png', lastModified: Date.now()});
-  const dt = new DataTransfer();
-  dt.items.add(f);
-  inputEl.files = dt.files;
-}
-
-// UI toggles for cover selection when modes need it
-function toggleCoverUI() {
-  const mode = UI.mode.value;
-  if (mode === 'encrypt' || mode === 'camo') {
-    UI.coverIn.style.display='block';
-    UI.coverLabel.style.display='block';
-    UI.makeBlackCover.style.display='inline-block';
-    UI.useDemoCover.style.display='inline-block';
-  } else {
-    UI.coverIn.style.display='none';
-    UI.coverLabel.style.display='none';
-    UI.makeBlackCover.style.display='none';
-    UI.useDemoCover.style.display='none';
-  }
-}
-UI.mode.addEventListener('change', toggleCoverUI);
-toggleCoverUI();
-
-UI.makeBlackCover.addEventListener('click', async ()=> {
-  try {
-    const blob = await makeBlackPngBlob(1024,1024);
-    setFileInputFromBlob(UI.coverIn, blob, 'black_cover.png');
-    logStatus('Black cover generated and selected.');
-  } catch (e) { logStatus('Error generating black PNG: '+e.message, true); }
-});
-
-UI.useDemoCover.addEventListener('click', async ()=> {
-  const c = document.createElement('canvas'); c.width=512; c.height=512;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle='#071019'; ctx.fillRect(0,0,512,512);
-  ctx.fillStyle='#1fb58a'; ctx.fillRect(40,40,432,432);
-  c.toBlob(b=> { setFileInputFromBlob(UI.coverIn, b, 'demo_cover.png'); logStatus('Demo cover selected.'); }, 'image/png');
-});
-
-// Main actions
-UI.goBtn.addEventListener('click', async ()=> {
-  hideStatus();
-  const file = UI.fileIn.files[0];
-  const pass = UI.password.value;
-  const mode = UI.mode.value;
-  try {
-    if ((mode === 'encrypt' || mode === 'encrypt-raw' || mode === 'camo') && !file) { logStatus('Select an input file first', true); return; }
-    if ((mode==='encrypt' || mode==='encrypt-raw' || mode==='camo' || mode==='decrypt') && (!pass)) { logStatus('Provide a password', true); return; }
-
-    if (mode === 'encrypt-raw') {
-      // produce raw .blackout container (advanced)
-      const plain = await buildPlainWithMetadata(file);
-      const container = await encryptBytes(plain, pass);
-      saveAsFile(container, file.name + '.blackout', 'application/octet-stream');
-      logStatus('Encrypted raw container ready (.blackout)');
-      return;
-    }
-
-    if (mode === 'encrypt') {
-      // default: encrypt then embed into PNG and save as PNG
-      const plain = await buildPlainWithMetadata(file);
-      const container = await encryptBytes(plain, pass);
-      // choose cover png
-      let coverFile = UI.coverIn.files[0];
-      if (!coverFile) {
-        // generate black PNG
-        const blob = await makeBlackPngBlob(1024,1024);
-        coverFile = new File([blob], (file.name || 'cover') + '.png', {type:'image/png'});
-      }
-      const pngAb = await fileToArrayBuffer(coverFile);
-      const out = insertPngCamo(new Uint8Array(pngAb), new Uint8Array(container));
-      // save as PNG (same name as cover)
-      const outName = coverFile.name.replace(/\.png$/i, '') + '.png';
-      saveAsFile(out.buffer, outName, 'image/png');
-      logStatus('Encrypted and embedded into PNG (default behavior). Saved as ' + outName);
-      return;
-    }
-
-    if (mode === 'camo') {
-      // embed an existing .blackout into PNG (user supplied .blackout)
-      const inputAb = await fileToArrayBuffer(file);
-      // verify it's a container
-      const magic = new TextEncoder().encode('BLKOUT01');
-      const startsWithMagic = (inputAb.byteLength >= magic.byteLength && (() => {
-        const arr = new Uint8Array(inputAb, 0, magic.byteLength); for(let i=0;i<magic.byteLength;i++) if(arr[i]!==magic[i]) return false; return true;
-      })());
-      if (!startsWithMagic) { logStatus('Input does not look like a .blackout container. Use Encrypt mode to create one.', true); return; }
-      let coverFile = UI.coverIn.files[0];
-      if (!coverFile) {
-        const blob = await makeBlackPngBlob(1024,1024);
-        coverFile = new File([blob], 'black_cover.png', {type:'image/png'});
-      }
-      const pngAb = await fileToArrayBuffer(coverFile);
-      const out = insertPngCamo(new Uint8Array(pngAb), new Uint8Array(inputAb));
-      const outName = coverFile.name.replace(/\.png$/i, '') + '.camo.png';
-      saveAsFile(out.buffer, outName, 'image/png');
-      logStatus('Embedded existing container into PNG. Saved as ' + outName);
-      return;
-    }
-
-    if (mode === 'decrypt') {
-      // accept either raw .blackout or camo PNG with embedded container
-      const ab = await fileToArrayBuffer(file);
-      let containerBuf = ab;
-      // if it's a PNG, try to extract
-      if (isPng(new Uint8Array(ab))) {
-        try {
-          const payload = extractPngCamo(new Uint8Array(ab));
-          containerBuf = payload.buffer;
-        } catch (e) {
-          // no camo chunk — attempt to treat as raw container below
-        }
-      }
-      const pt = await decryptBytes(containerBuf, pass);
-      const parsed = parsePlainWithMetadata(pt);
-      const suggested = UI.decryptName.value.trim() || (parsed.meta && parsed.meta.name) || ('decrypted.bin');
-      saveAsFile(parsed.fileBytes.buffer, suggested, parsed.meta.type || 'application/octet-stream');
-      logStatus('Decrypted — ready to download as ' + suggested);
-      return;
-    }
-
-    if (mode === 'decamo') {
-      const file2 = UI.fileIn.files[0];
-      if (!file2) { logStatus('Select PNG input', true); return; }
-      const pngAb = await fileToArrayBuffer(file2);
-      const payload = extractPngCamo(new Uint8Array(pngAb));
-      saveAsFile(payload.buffer, 'extracted-' + file2.name + '.blackout', 'application/octet-stream');
-      logStatus('Extracted payload saved as raw .blackout. Use Decrypt mode to restore file.');
-      return;
-    }
-
-  } catch (e) {
-    logStatus('Error: ' + (e && e.message ? e.message : String(e)), true);
-    console.error(e);
-  }
-});
-
-// nested re-encrypt
-UI.reencryptBtn.addEventListener('click', async ()=> {
-  const file = UI.fileIn.files[0];
-  const pass = UI.password.value;
-  if (!file || !pass) { logStatus('Provide .blackout file and new password', true); return; }
-  try {
-    const ab = await fileToArrayBuffer(file);
-    const wrapped = await encryptBytes(ab, pass);
-    saveAsFile(wrapped, file.name + '.reencrypted.blackout', 'application/octet-stream');
-    logStatus('Re-encrypted nested container ready');
-  } catch (e) {
-    logStatus('Error: '+e.message, true);
-  }
-});
-
-// inspect PNG chunks
-UI.inspectBtn.addEventListener('click', async ()=> {
-  const f = UI.fileIn.files[0];
-  if (!f) { logStatus('Select a PNG to inspect', true); return; }
-  try {
-    const ab = await fileToArrayBuffer(f);
-    if (!isPng(new Uint8Array(ab))) { logStatus('Not a PNG', true); return; }
-    const chunks = [];
-    let off=8;
-    const bytes = new Uint8Array(ab);
-    while (off+8 <= bytes.length) {
-      const len = readU32(bytes, off);
-      const type = String.fromCharCode(...bytes.slice(off+4, off+8));
-      const dataStart = off+8;
-      const next = dataStart + len + 4;
-      chunks.push({type, len});
-      off = next;
-    }
-    UI.lastOut.textContent = JSON.stringify(chunks, null, 2);
-    UI.downloadBtn.style.display='none';
-    hideStatus();
-  } catch (e) {
-    logStatus('Error: '+e.message, true);
-  }
-});
-
-// meta inspect (requires password)
-UI.metaInspectBtn.addEventListener('click', async ()=> {
-  const f = UI.fileIn.files[0];
-  if (!f) { logStatus('Select a .blackout or camo PNG to inspect', true); return; }
-  if (!UI.password.value) { logStatus('Provide password to inspect metadata', true); return; }
-  try {
-    const ab = await fileToArrayBuffer(f);
-    let containerBuf = ab;
-    if (isPng(new Uint8Array(ab))) {
-      try { const payload = extractPngCamo(new Uint8Array(ab)); containerBuf = payload.buffer; } catch(e){}
-    }
-    const pt = await decryptBytes(containerBuf, UI.password.value);
-    const parsed = parsePlainWithMetadata(pt);
-    UI.lastOut.textContent = 'metadata: ' + JSON.stringify(parsed.meta, null, 2);
-    UI.downloadBtn.style.display='none';
-    hideStatus();
-  } catch (e) {
-    logStatus('Error reading metadata: '+e.message, true);
-  }
-});
-
-UI.clearBtn.addEventListener('click', ()=> {
-  UI.fileIn.value=''; UI.coverIn.value=''; UI.password.value=''; UI.decryptName.value=''; UI.lastOut.textContent='No output yet.'; UI.downloadBtn.style.display='none'; hideStatus();
-});
-
-/* Lock overlay */
-const lockEl = document.getElementById('lock');
-const unlockBtn = document.getElementById('unlockBtn');
-const unlockPass = document.getElementById('unlockPass');
-const demoBtn = document.getElementById('demoBtn');
-
-unlockBtn.addEventListener('click', ()=> {
-  const v = unlockPass.value;
-  if (!v) return;
-  lockEl.style.display='none';
-});
-
-demoBtn.addEventListener('click', async ()=> {
-  // preload demo cover and file
-  const c = document.createElement('canvas'); c.width=256; c.height=256;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle='#0b1220'; ctx.fillRect(0,0,256,256);
-  ctx.fillStyle='#0f9f7f'; ctx.fillRect(20,20,216,216);
-  c.toBlob(b=> {
-    const f = new File([b], 'demo_cover.png', {type:'image/png'});
-    const dt = new DataTransfer(); dt.items.add(f); UI.coverIn.files = dt.files;
-  }, 'image/png');
-  const blob = new Blob(['Hello from Blackout demo'], {type:'text/plain'});
-  const demoFile = new File([blob], 'hello.txt', {type:'text/plain'});
-  const dt2 = new DataTransfer(); dt2.items.add(demoFile); UI.fileIn.files = dt2.files;
-  lockEl.style.display='none';
-});
-
-</script>
+<script src="app.js"></script>
 </body>
 </html>
