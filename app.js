@@ -892,6 +892,9 @@ const lockEl = document.getElementById('lock');
 const appEl = document.getElementById('app');
 const setupMode = document.getElementById('setupMode');
 const unlockMode = document.getElementById('unlockMode');
+const insecureMode = document.getElementById('insecureMode');
+const insecureOriginEl = document.getElementById('insecureOrigin');
+const insecureBypassBtn = document.getElementById('insecureBypassBtn');
 
 const setupPass = document.getElementById('setupPass');
 const setupPassConfirm = document.getElementById('setupPassConfirm');
@@ -1228,6 +1231,26 @@ regenPhraseBtn.addEventListener('click', renderRecoveryPhrase);
 recoverAck.addEventListener('change', () => { setPassBtn.disabled = !recoverAck.checked; });
 
 function initLock() {
+  // ── Insecure-context guard ──────────────────────────────────────────────
+  // crypto.subtle is only available in secure contexts (HTTPS or localhost).
+  // On a plain-HTTP local-network URL (e.g. 192.168.x.x:5500) the API is
+  // undefined, and every call to importKey / deriveBits crashes immediately.
+  // Instead of showing an unusable lock form, display a clear warning and let
+  // the user bypass the lock so they at least see the UI.
+  if (!window.isSecureContext || !window.crypto || !window.crypto.subtle) {
+    if (insecureOriginEl) insecureOriginEl.textContent = window.location.host || window.location.origin;
+    if (insecureMode) insecureMode.style.display = 'block';
+    if (setupMode) setupMode.style.display = 'none';
+    if (unlockMode) unlockMode.style.display = 'none';
+    setLocked(true); // show the overlay…
+    // …then wire the bypass button to dismiss it without any crypto calls
+    if (insecureBypassBtn && !insecureBypassBtn._bound) {
+      insecureBypassBtn._bound = true;
+      insecureBypassBtn.addEventListener('click', () => setLocked(false));
+    }
+    return;
+  }
+  // ── Normal (secure-context) lock flow ──────────────────────────────────
   const saved = localStorage.getItem(LOCK_STORAGE_KEY);
   if (saved) {
     unlockMode.style.display = 'block';
@@ -1453,7 +1476,7 @@ window.addEventListener('load', () => {
   initLock();
   const probs = supportProblems();
   if (probs.length) {
-    logToConsole(probs.join(' '), 'error');
+    logToConsole('⚠️ ' + probs.join(' ') + ' Encryption and decryption will not work on this origin.', 'error');
   } else {
     logToConsole('Blackout v' + APP_VERSION + ' initialized — all required APIs available.');
   }

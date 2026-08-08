@@ -187,6 +187,35 @@
   <div class="lock-card">
     <div class="brand" id="lockBrand">Black<span>out</span></div>
 
+    <!-- Insecure Context Warning (shown when loaded over HTTP on a non-localhost origin) -->
+    <div id="insecureMode" style="display:none;">
+      <div class="lock-sub" style="color:#ffb3b3; font-weight:600; margin-bottom:12px; font-size:1rem;">
+        ⚠️ Insecure Connection Detected
+      </div>
+      <div class="lock-sub" style="margin-bottom:18px; line-height:1.7;">
+        You are accessing Blackout over <strong>plain HTTP</strong> (e.g. a local IP like
+        <code id="insecureOrigin" style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:monospace;"></code>).
+        <br><br>
+        Browsers block <strong>Web Crypto API</strong> (<code>crypto.subtle</code>) on non-secure origins,
+        so the device lock and all encryption features are unavailable here.
+      </div>
+      <div class="lock-sub" style="margin-bottom:18px; line-height:1.7; color:#a0f0c8;">
+        <strong>How to fix this:</strong><br>
+        • Open the app from <code>http://localhost:…</code> or <code>http://127.0.0.1:…</code> on this machine<br>
+        • Or serve the app over <strong>HTTPS</strong> (deploy to GitHub Pages, Netlify, Vercel, etc.)<br>
+        • Or run a local HTTPS dev server (e.g. <code>npx serve --ssl-cert …</code>)
+      </div>
+      <div class="lock-sub" style="color:#ffcc66; margin-bottom:24px;">
+        The interface will open without the passcode lock, but <strong>encryption and decryption will also fail</strong>
+        until you switch to a secure origin.
+      </div>
+      <div class="controls">
+        <button id="insecureBypassBtn" style="background:rgba(255,165,0,0.18); border-color:rgba(255,165,0,0.5);">
+          Continue Anyway (No Crypto)
+        </button>
+      </div>
+    </div>
+
     <!-- Setup Mode -->
     <div id="setupMode" style="display: none;">
       <div class="lock-sub">Initialize device security. Set a master passcode to protect this tool from unauthorized access on this device.</div>
