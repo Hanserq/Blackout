@@ -132,16 +132,16 @@
           <input type="radio" name="cloudProvider" value="system" checked />
           <div class="provider-icon">📁</div>
           <div class="provider-info">
-            <div class="provider-title">Local Cloud Sync / System Picker</div>
-            <div class="provider-desc">Direct save to your local Google Drive, OneDrive, or iCloud Drive synced folder. No API keys needed.</div>
+            <div class="provider-title">Local Cloud Sync / System Picker <span style="color:var(--accent); font-size:11px; margin-left:6px;">(Recommended — Instant 1-Click)</span></div>
+            <div class="provider-desc">Saves directly to your local Google Drive, OneDrive, or iCloud Drive synced folder on your computer. Zero setup, no API keys or logins required.</div>
           </div>
         </label>
         <label class="provider-option" data-provider="gdrive">
           <input type="radio" name="cloudProvider" value="gdrive" />
           <div class="provider-icon">🟢</div>
           <div class="provider-info">
-            <div class="provider-title">Google Drive Vault</div>
-            <div class="provider-desc">Direct 100% client-side upload into a dedicated "Blackout Vault" folder in your Google Drive.</div>
+            <div class="provider-title">Google Drive Web API</div>
+            <div class="provider-desc">Direct upload to a "Blackout Vault" folder in your Google Drive via Google OAuth popup login.</div>
           </div>
         </label>
       </div>
@@ -154,13 +154,16 @@
             Sign In with Google
           </button>
         </div>
-        <div id="gdriveStatusText" class="field-hint" style="margin-top:8px;">Click to authorize Blackout to upload files to your Google Drive Vault.</div>
+        <div id="gdriveStatusText" class="field-hint" style="margin-top:8px;">Click to open Google Sign-In popup and authorize Blackout.</div>
 
         <details style="margin-top:10px;">
-          <summary style="cursor:pointer; font-size:12px; color:var(--muted);">Advanced: Custom OAuth Client ID or Access Token</summary>
-          <div style="margin-top:8px;">
-            <input id="gdriveClientId" type="text" placeholder="Custom Google OAuth Client ID (Optional)" autocomplete="off" spellcheck="false" style="margin-bottom:8px;" />
-            <input id="gdriveToken" type="password" placeholder="Or paste raw OAuth Access Token" autocomplete="off" spellcheck="false" />
+          <summary style="cursor:pointer; font-size:12px; color:var(--muted);">OAuth Details & How to get a Token / Client ID</summary>
+          <div style="margin-top:8px; font-size:12px; color:var(--muted); line-height:1.5;">
+            <p style="margin:0 0 6px;"><strong>Option A (Host Setup)</strong>: Set your Web OAuth Client ID in <code>cloud.js</code> (<code>CONFIG.googleClientId</code>). Once set, the button above opens Google Sign-In instantly with zero user setup.</p>
+            <p style="margin:0 0 6px;"><strong>Option B (Personal Client ID)</strong>: Paste your personal Google Cloud Client ID below:</p>
+            <input id="gdriveClientId" type="text" placeholder="e.g. 123456789-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false" style="margin-bottom:8px;" />
+            <p style="margin:0 0 6px;"><strong>Option C (Instant Token)</strong>: Get a 1-hour access token from <a href="https://developers.google.com/oauthplayground/" target="_blank" rel="noopener" style="color:var(--accent);">Google OAuth Playground</a> (select <em>Drive API v3 drive.file</em> scope) and paste it below:</p>
+            <input id="gdriveToken" type="password" placeholder="Paste Access Token (ya29.a0...)" autocomplete="off" spellcheck="false" />
           </div>
         </details>
       </div>
