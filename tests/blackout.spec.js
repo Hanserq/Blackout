@@ -318,4 +318,30 @@ test.describe('Blackout', () => {
     const out = fs.readFileSync(await download.path());
     expect(out.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   });
+
+  test('cloud save modal opens after encryption and accepts secret context note', async ({ page }) => {
+    await page.goto('/');
+    await unlockApp(page);
+
+    await page.selectOption('#mode', 'text-encrypt');
+    await page.fill('#textInput', 'secret cloud message');
+    await page.fill('#password', PASSWORD);
+    await page.click('#goBtn');
+
+    // Save to Cloud button becomes visible
+    await expect(page.locator('#saveCloudBtn')).toBeVisible();
+    await page.click('#saveCloudBtn');
+
+    // Cloud Modal appears
+    await expect(page.locator('#cloudModal')).toBeVisible();
+
+    // Fill secret context note
+    await page.fill('#cloudContextNote', 'Personal tax records key hint');
+    await expect(page.locator('#cloudContextNote')).toHaveValue('Personal tax records key hint');
+
+    // Close modal
+    await page.click('#closeCloudModal');
+    await expect(page.locator('#cloudModal')).toBeHidden();
+  });
 });
+

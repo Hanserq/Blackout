@@ -33,6 +33,19 @@ const UI = {
   progressWrap: document.getElementById('progressWrap'),
   progressBar: document.querySelector('.progress-bar'),
   progressLabel: document.getElementById('progressLabel'),
+  saveCloudBtn: document.getElementById('saveCloudBtn'),
+  importCloudBtn: document.getElementById('importCloudBtn'),
+  cloudModal: document.getElementById('cloudModal'),
+  closeCloudModal: document.getElementById('closeCloudModal'),
+  cancelCloudModalBtn: document.getElementById('cancelCloudModalBtn'),
+  confirmCloudSaveBtn: document.getElementById('confirmCloudSaveBtn'),
+  cloudContextNote: document.getElementById('cloudContextNote'),
+  cloudModalStatus: document.getElementById('cloudModalStatus'),
+  gdriveAuthWrap: document.getElementById('gdriveAuthWrap'),
+  gdriveToken: document.getElementById('gdriveToken'),
+  gdriveSignInBtn: document.getElementById('gdriveSignInBtn'),
+  gdriveStatusText: document.getElementById('gdriveStatusText'),
+  gdriveClientId: document.getElementById('gdriveClientId'),
 };
 
 const GO_LABEL = UI.goBtn.textContent;
@@ -408,7 +421,9 @@ function saveAsFile(buf, filename, mimeType) {
   const blob = new Blob([buf], {type: mimeType || 'application/octet-stream'});
   const url = URL.createObjectURL(blob);
   UI._artifactUrl = url;
+  UI._currentArtifact = { buffer: buf, filename: filename, mimeType: mimeType || 'application/octet-stream' };
   UI.downloadBtn.style.display='inline-block';
+  if (UI.saveCloudBtn) UI.saveCloudBtn.style.display='inline-block';
   UI.downloadBtn.onclick = ()=> {
     const a = document.createElement('a');
     a.href = url;
@@ -417,7 +432,7 @@ function saveAsFile(buf, filename, mimeType) {
     a.click();
     a.remove();
   };
-  logToConsole(filename + ' (ready to download)');
+  logToConsole(filename + ' (ready to export / save to cloud)');
 }
 
 // black PNG generator for cover
@@ -1443,3 +1458,144 @@ window.addEventListener('load', () => {
     logToConsole('Blackout v' + APP_VERSION + ' initialized — all required APIs available.');
   }
 });
+
+// ---------- Cloud Storage & Vault Event Handlers ----------
+
+function openCloudModal() {
+  if (!UI._currentArtifact) {
+    logStatus('No generated artifact available to save. Execute a protocol first.', true);
+    return;
+  }
+  UI.cloudModal.style.display = 'flex';
+  UI.cloudModal.setAttribute('aria-hidden', 'false');
+  UI.cloudModalStatus.style.display = 'none';
+  UI.cloudContextNote.value = '';
+}
+
+function closeCloudModal() {
+  UI.cloudModal.style.display = 'none';
+  UI.cloudModal.setAttribute('aria-hidden', 'true');
+}
+
+if (UI.saveCloudBtn) UI.saveCloudBtn.addEventListener('click', openCloudModal);
+if (UI.closeCloudModal) UI.closeCloudModal.addEventListener('click', closeCloudModal);
+if (UI.cancelCloudModalBtn) UI.cancelCloudModalBtn.addEventListener('click', closeCloudModal);
+
+// Radio provider toggle
+document.querySelectorAll('input[name="cloudProvider"]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    document.querySelectorAll('.provider-option').forEach(opt => opt.classList.remove('active'));
+    const parentLabel = e.target.closest('.provider-option');
+    if (parentLabel) parentLabel.classList.add('active');
+
+    const provider = e.target.value;
+    if (UI.gdriveAuthWrap) {
+      UI.gdriveAuthWrap.style.display = (provider === 'gdrive') ? 'block' : 'none';
+    }
+  });
+});
+
+if (UI.confirmCloudSaveBtn) {
+  UI.confirmCloudSaveBtn.addEventListener('click', async () => {
+    if (!UI._currentArtifact) { closeCloudModal(); return; }
+
+    const selectedProvider = document.querySelector('input[name="cloudProvider"]:checked')?.value || 'system';
+    const note = UI.cloudContextNote ? UI.cloudContextNote.value : '';
+    UI.cloudModalStatus.style.display = 'none';
+    UI.confirmCloudSaveBtn.disabled = true;
+    UI.confirmCloudSaveBtn.textContent = 'Saving…';
+
+    try {
+      if (selectedProvider === 'system') {
+        const res = await window.BlackoutCloud.saveToSystemCloud(
+          UI._currentArtifact.buffer,
+          UI._currentArtifact.filename,
+          UI._currentArtifact.mimeType,
+          note
+        );
+        if (!res.canceled) {
+          logStatus('Artifact saved to cloud storage folder: ' + (res.filename || UI._currentArtifact.filename));
+          logToConsole('Saved ' + UI._currentArtifact.filename + ' to Cloud Vault with context note.', 'data');
+          closeCloudModal();
+        }
+      } else if (selectedProvider === 'gdrive') {
+        const token = window.BlackoutCloud.getCachedGoogleToken() || (UI.gdriveToken ? UI.gdriveToken.value.trim() : '');
+        if (!token) {
+          UI.cloudModalStatus.textContent = 'Please click "Sign In with Google" or enter an OAuth Token below.';
+          UI.cloudModalStatus.style.display = 'block';
+          return;
+        }
+        const res = await window.BlackoutCloud.uploadToGoogleDrive(
+          token,
+          UI._currentArtifact.buffer,
+          UI._currentArtifact.filename,
+          UI._currentArtifact.mimeType,
+          note
+        );
+        logStatus('Uploaded ' + res.name + ' to Google Drive ("' + res.folder + '")');
+        logToConsole('Uploaded to Google Drive Vault ID: ' + res.fileId, 'data');
+        closeCloudModal();
+      }
+    } catch (e) {
+      UI.cloudModalStatus.textContent = 'Cloud Save Error: ' + (e && e.message ? e.message : e);
+      UI.cloudModalStatus.style.display = 'block';
+      logToConsole('Cloud Save Error: ' + (e && e.message ? e.message : e), 'error');
+    } finally {
+      UI.confirmCloudSaveBtn.disabled = false;
+      UI.confirmCloudSaveBtn.textContent = 'Save Artifact to Cloud';
+    }
+  });
+}
+
+// Import from Cloud Vault button
+if (UI.importCloudBtn) {
+  UI.importCloudBtn.addEventListener('click', async () => {
+    try {
+      const file = await window.BlackoutCloud.importFromSystemCloud();
+      if (file) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        UI.fileIn.files = dt.files;
+        UI.fileIn.dispatchEvent(new Event('change', { bubbles: true }));
+        logStatus('Loaded cloud vault file: ' + file.name);
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        logStatus('Import Error: ' + (e && e.message ? e.message : e), true);
+      }
+    }
+  });
+}
+
+// Google OAuth Sign-In Popup Button
+if (UI.gdriveSignInBtn) {
+  UI.gdriveSignInBtn.addEventListener('click', () => {
+    const customId = UI.gdriveClientId ? UI.gdriveClientId.value : '';
+    UI.gdriveSignInBtn.disabled = true;
+    UI.gdriveSignInBtn.textContent = 'Opening Google Sign-In…';
+
+    window.BlackoutCloud.requestGoogleOAuthToken(
+      customId,
+      (token) => {
+        UI.gdriveSignInBtn.disabled = false;
+        UI.gdriveSignInBtn.textContent = 'Connected to Google Drive ✓';
+        UI.gdriveSignInBtn.style.background = 'rgba(0, 255, 136, 0.2)';
+        if (UI.gdriveStatusText) {
+          UI.gdriveStatusText.textContent = 'Authorized ✓ Ready to save file into your Google Drive Vault.';
+          UI.gdriveStatusText.style.color = '#00ff88';
+        }
+        logToConsole('Google Drive OAuth authorized successfully.', 'data');
+      },
+      (err) => {
+        UI.gdriveSignInBtn.disabled = false;
+        UI.gdriveSignInBtn.textContent = 'Sign In with Google';
+        if (UI.cloudModalStatus) {
+          UI.cloudModalStatus.textContent = err;
+          UI.cloudModalStatus.style.display = 'block';
+        }
+      }
+    );
+  });
+}
+
+
