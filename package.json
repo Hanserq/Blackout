@@ -1,0 +1,14 @@
+{
+  "name": "blackout",
+  "version": "2.3.0",
+  "description": "Client-side steganography tool — compress, encrypt, and hide files inside PNG images.",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}

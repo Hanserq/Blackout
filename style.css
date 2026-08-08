@@ -9,6 +9,7 @@
   --danger: #ff4757;
   --glass: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.08);
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   font-family: 'Outfit', system-ui, -apple-system, sans-serif;
 }
 
@@ -22,6 +23,11 @@ html, body {
 
 * {
   box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(0, 255, 136, 0.25);
+  color: #ffffff;
 }
 
 .app {
@@ -44,6 +50,22 @@ h1 {
   background: linear-gradient(90deg, #ffffff, #a0aec0);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+h1 span {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 3px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--accent);
+  -webkit-text-fill-color: var(--accent);
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.25);
+  border-radius: 999px;
+  vertical-align: middle;
+  box-shadow: 0 0 18px rgba(0, 255, 136, 0.12);
 }
 
 p.lead {
@@ -86,6 +108,14 @@ label {
   letter-spacing: 0.8px;
 }
 
+/* Keyboard focus visibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 input[type="file"] {
   color: var(--muted);
   font-size: 14px;
@@ -109,7 +139,7 @@ input[type="file"]::file-selector-button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
-input[type="text"], input[type="password"], select {
+input[type="text"], input[type="password"], select, textarea {
   width: 100%;
   padding: 14px 18px;
   border-radius: 12px;
@@ -121,7 +151,13 @@ input[type="text"], input[type="password"], select {
   transition: all 0.3s ease;
 }
 
-input[type="text"]:focus, input[type="password"]:focus, select:focus {
+textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.5;
+}
+
+input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.15);
@@ -140,6 +176,7 @@ button {
   transition: all 0.2s ease;
   box-shadow: 0 4px 16px rgba(0, 255, 136, 0.2);
   font-family: 'Outfit';
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:hover {
@@ -179,10 +216,26 @@ button.ghost:hover {
   border-radius: 12px;
   margin-top: 14px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.6;
   border: 1px solid var(--glass-border);
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
+
+.output::-webkit-scrollbar { width: 8px; }
+.output::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+.output::-webkit-scrollbar-track { background: transparent; }
+
+.log-entry { margin-bottom: 6px; }
+.log-time { color: var(--accent); opacity: 0.7; margin-right: 8px; }
+.log-error { color: #ffb3b3; }
+.log-data { color: #7fd4ff; }
+.log-empty { color: var(--muted); font-style: italic; }
 
 .footer {
   display: flex;
@@ -200,7 +253,97 @@ button.ghost:hover {
   line-height: 1.5;
 }
 
+.field-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
 .hp { height: 20px; }
+
+/* Password generator + strength meter */
+.pass-tools {
+  margin-top: 12px;
+}
+
+.strength {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.strength-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--danger);
+  transition: width 0.35s ease, background 0.35s ease;
+}
+
+.strength-fill[data-level="1"] { background: #ff8c42; }
+.strength-fill[data-level="2"] { background: #ffd166; }
+.strength-fill[data-level="3"] { background: #7fd4ff; }
+.strength-fill[data-level="4"] { background: var(--accent); box-shadow: 0 0 10px rgba(0, 255, 136, 0.5); }
+
+.strength-label {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 44px;
+  text-align: right;
+  font-weight: 600;
+}
+
+/* Processing progress indicator */
+.progress-wrap {
+  margin-top: 14px;
+}
+
+.progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), #7fd4ff);
+  animation: progress-slide 1.2s ease-in-out infinite;
+}
+
+/* Determinate (percentage) progress — width is set inline from JS */
+.progress-bar.determinate {
+  width: 0;
+  animation: none;
+  background: linear-gradient(90deg, var(--accent), #7fd4ff);
+  transition: width 0.4s ease;
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.35);
+}
+
+@keyframes progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+.progress-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+  font-family: var(--font-mono);
+}
 
 .row2 {
   display: flex;
@@ -216,6 +359,79 @@ button.ghost:hover {
 }
 
 .flexrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+/* Drop zones */
+.drop-field {
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 16px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.drop-field.dragover {
+  border-color: var(--accent);
+  background: rgba(0, 255, 136, 0.05);
+  box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.08);
+}
+
+.file-info {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* Password visibility toggle */
+.pass-wrap {
+  position: relative;
+}
+
+.pass-wrap input[type="password"],
+.pass-wrap input[type="text"] {
+  padding-right: 52px;
+}
+
+.pass-wrap .toggle-pass {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.pass-wrap .toggle-pass:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  transform: translateY(-50%);
+  box-shadow: none;
+}
+
+.pass-wrap .toggle-pass:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.toggle-pass svg {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.toggle-pass .eye-off { display: none; }
+.toggle-pass.visible .eye-on { display: none; }
+.toggle-pass.visible .eye-off { display: block; }
 
 /* Lock overlay */
 .lock-overlay {
@@ -264,6 +480,7 @@ button.ghost:hover {
 
 .brand span {
   color: var(--accent);
+  text-shadow: 0 0 18px rgba(0, 255, 136, 0.45);
 }
 
 .lock-sub {
@@ -291,6 +508,70 @@ button.ghost:hover {
   font-size: 13px;
   margin-top: 8px;
   display: none;
+}
+
+.noscript {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: #ffffff;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 16px;
+  text-align: center;
+  padding: 24px;
+  z-index: 10000;
+}
+
+/* Offline recovery phrase */
+.recover-box {
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px dashed rgba(0, 255, 136, 0.35);
+  border-radius: 14px;
+  background: rgba(0, 255, 136, 0.04);
+  text-align: left;
+}
+
+.phrase-out {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--accent);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 4px;
+  word-spacing: 8px;
+  user-select: all;
+}
+
+.ack {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  margin: 14px 0 0;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.ack input {
+  width: auto;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.linklike {
+  color: var(--danger);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* Mobile Responsive Adjustments */
@@ -324,6 +605,15 @@ button.ghost:hover {
     width: 100%;
   }
 
+  .pass-tools {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .strength {
+    min-width: 100%;
+  }
+
   .row2 button {
     flex: 1;
     text-align: center;
@@ -340,5 +630,18 @@ button.ghost:hover {
   }
   .controls button {
     width: 100%;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+  .card:hover,
+  button:hover,
+  .pass-wrap .toggle-pass:hover {
+    transform: none;
   }
 }

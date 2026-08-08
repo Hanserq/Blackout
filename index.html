@@ -3,95 +3,200 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Blackout v2.0.0 — Encrypt & Compress → PNG</title>
+<meta name="description" content="Blackout — a client-side steganography tool. Compress, encrypt and hide files inside PNG images. Everything runs locally in your browser; nothing is uploaded." />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#03070a" />
+<title>Blackout v2.3.0 — Encrypt & Compress → PNG</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2303070a'/%3E%3Cpath d='M20 44V20h12a10 10 0 0 1 0 20h-6' fill='none' stroke='%2300ff88' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+<noscript><div class="noscript">Blackout requires JavaScript (Web Crypto + Compression APIs) to run. Please enable JavaScript and reload.</div></noscript>
 <div class="app" id="app">
-  <h1>Blackout <span>v2.0</span></h1>
+  <h1>Blackout <span>v2.3</span></h1>
   <p class="lead">Deeply compressed steganography tool. Encrypt data and securely hide within a PNG. Your workflow operates exclusively on your device—no cloud backups.</p>
 
   <div class="row">
     <div class="card">
-      <label>File (input)</label>
-      <input id="fileIn" type="file" />
+      <div class="drop-field" id="fileDrop">
+        <label for="fileIn">File (input) — click or drop</label>
+        <input id="fileIn" type="file" />
+        <div id="fileInfo" class="file-info" style="display:none"></div>
+      </div>
+
       <div class="hp"></div>
-      <label>File Encryption Password</label>
-      <input id="password" type="password" placeholder="Enter secure payload key" />
+      <label for="password">File Encryption Password</label>
+      <div class="pass-wrap">
+        <input id="password" type="password" placeholder="Enter secure payload key" autocomplete="new-password" spellcheck="false" />
+        <button type="button" id="togglePass" class="toggle-pass" aria-label="Show password" aria-pressed="false" title="Show / hide password">
+          <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
+      <div class="row2 pass-tools">
+        <button id="genPassBtn" type="button" class="ghost smallbtn" title="Generate a random strong password">Generate Password</button>
+        <div class="strength" title="Password strength estimate">
+          <div class="strength-bar"><div id="strengthFill" class="strength-fill" data-level="0"></div></div>
+          <span id="strengthLabel" class="strength-label">—</span>
+        </div>
+      </div>
+
       <div class="hp"></div>
-      <label>Mode</label>
+      <label for="mode">Mode</label>
       <select id="mode">
         <option value="encrypt">Encrypt, Compress & Hide → PNG (default)</option>
         <option value="encrypt-raw">Encrypt & Compress → raw .blackout (advanced)</option>
         <option value="decrypt">Decrypt & Decompress (from .blackout or camo PNG)</option>
         <option value="camo">Embed existing .blackout into PNG (camo)</option>
         <option value="decamo">Extract from Camo PNG</option>
+        <option value="text-encrypt">Encrypt Message (text) → container / PNG</option>
+        <option value="text-decrypt">Decrypt → Show Message (text)</option>
       </select>
 
       <div class="hp"></div>
-      <label id="coverLabel" style="display:none">Cover PNG (for camo / encrypt)</label>
-      <input id="coverIn" type="file" accept="image/png" style="display:none" />
-      <div class="row2" style="margin-top:12px">
-        <button id="makeBlackCover" class="ghost smallbtn" style="display:none">Forge Black PNG</button>
-        <button id="useDemoCover" class="ghost smallbtn" style="display:none">Load Demo Cover</button>
+      <div class="drop-field" id="coverDrop" style="display:none">
+        <label for="coverIn" id="coverLabel">Cover PNG (for camo / encrypt)</label>
+        <input id="coverIn" type="file" accept="image/png" />
+        <div id="coverInfo" class="file-info" style="display:none"></div>
+        <div class="row2" style="margin-top:12px">
+          <button id="makeBlackCover" class="ghost smallbtn" title="Generate a solid black 1024×1024 PNG cover">Forge Black PNG</button>
+          <button id="useDemoCover" class="ghost smallbtn" title="Load the built-in demo cover image">Load Demo Cover</button>
+        </div>
       </div>
 
       <div class="hp"></div>
-      <label>Decrypt File Output Name (optional)</label>
-      <input id="decryptName" type="text" placeholder="Leave empty to restore original filename" />
+      <label for="outputName">Output File Name (optional)</label>
+      <input id="outputName" type="text" placeholder="Leave empty for a smart default — works for encrypt & decrypt" autocomplete="off" spellcheck="false" />
+      <div class="field-hint">Used in every mode. Encrypt modes append the right extension automatically; decrypt restores the original filename when left empty.</div>
+
+      <div class="hp"></div>
+      <div id="textWrap" style="display:none">
+        <label for="textInput" id="textLabel">Message to Encrypt (text mode)</label>
+        <textarea id="textInput" rows="5" placeholder="Type or paste a message here…" autocomplete="off" spellcheck="false"></textarea>
+        <div class="row2" style="margin-top:10px">
+          <button id="copyMsgBtn" type="button" class="ghost smallbtn" title="Copy the message to the clipboard">Copy Message</button>
+          <button id="clearTextBtn" type="button" class="ghost smallbtn" title="Clear the message box">Clear Text</button>
+        </div>
+      </div>
 
       <div class="hp"></div>
       <div class="flexrow" style="margin-top:20px;">
-        <button id="goBtn">Execute Protocol</button>
-        <button id="downloadBtn" class="ghost" style="display:none">Export Artifact</button>
-        <button id="clearBtn" class="ghost">Wipe Cache</button>
+        <button id="goBtn" title="Execute the selected protocol">Execute Protocol</button>
+        <button id="downloadBtn" class="ghost" style="display:none" title="Download the generated artifact">Export Artifact</button>
+        <button id="clearBtn" class="ghost" title="Clear inputs, password and console output">Wipe Cache</button>
       </div>
       <div class="hint">Warning: some apps or image optimizers may strip hidden payload chunks when editing or recompressing Camo PNG images. Keep backups of your primary assets.</div>
-      <div id="status" class="output" style="display:none"></div>
+      <div id="status" class="output" role="status" aria-live="polite" style="display:none"></div>
+      <div id="progressWrap" class="progress-wrap" role="progressbar" aria-label="Processing" style="display:none">
+        <div class="progress-track"><div class="progress-bar"></div></div>
+        <div id="progressLabel" class="progress-label">Working…</div>
+      </div>
     </div>
 
     <div class="card">
       <label>System Diagnostics & Ops</label>
       <div class="row2">
-        <button id="reencryptBtn" class="ghost smallbtn">Nested Re-encrypt</button>
-        <button id="inspectBtn" class="ghost smallbtn">Inspect PNG Payload</button>
-        <button id="metaInspectBtn" class="ghost smallbtn">Verify Metadata</button>
+        <button id="reencryptBtn" class="ghost smallbtn" title="Wrap the selected file in a new encrypted container">Nested Re-encrypt</button>
+        <button id="inspectBtn" class="ghost smallbtn" title="List all PNG chunks in the selected image">Inspect PNG Payload</button>
+        <button id="metaInspectBtn" class="ghost smallbtn" title="Decrypt and print embedded metadata (requires password)">Verify Metadata</button>
+        <button id="viewRecoveryBtn" class="ghost smallbtn" title="Reveal your offline recovery phrase (requires device passcode)">Show Recovery Phrase</button>
       </div>
       <div class="hp"></div>
-      <label>Console Output</label>
-      <div id="lastOut" class="output" style="min-height: 100px;">Awaiting instructions...</div>
+      <label for="lastOut">Console Output</label>
+      <div id="lastOut" class="output" role="log" aria-live="polite" style="min-height: 100px;">Awaiting instructions...</div>
       <div class="footer">
         <div class="muted">System status: Online</div>
-        <div class="muted" style="cursor: pointer; text-decoration: underline;" id="deviceResetBtn">Reset Device Lock</div>
+        <div class="muted" style="cursor: pointer; text-decoration: underline;" id="deviceResetBtn" title="Lock the application and reset the device passcode">Reset Device Lock</div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Lock overlay -->
-<div id="lock" class="lock-overlay" aria-hidden="false">
+<div id="lock" class="lock-overlay" aria-hidden="false" role="dialog" aria-modal="true" aria-labelledby="lockBrand">
   <div class="lock-card">
-    <div class="brand">Black<span>out</span></div>
-    
+    <div class="brand" id="lockBrand">Black<span>out</span></div>
+
     <!-- Setup Mode -->
     <div id="setupMode" style="display: none;">
       <div class="lock-sub">Initialize device security. Set a master passcode to protect this tool from unauthorized access on this device.</div>
-      <input id="setupPass" type="password" placeholder="Create Device Passcode" />
-      <input id="setupPassConfirm" type="password" placeholder="Confirm Device Passcode" style="margin-top: 12px;" />
+      <div class="pass-wrap">
+        <input id="setupPass" type="password" placeholder="Create Device Passcode" autocomplete="new-password" spellcheck="false" />
+        <button type="button" id="toggleSetupPass" class="toggle-pass" aria-label="Show passcode" aria-pressed="false" title="Show / hide passcode">
+          <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
+      <div class="pass-wrap" style="margin-top: 12px;">
+        <input id="setupPassConfirm" type="password" placeholder="Confirm Device Passcode" autocomplete="new-password" spellcheck="false" />
+        <button type="button" id="toggleSetupPassConfirm" class="toggle-pass" aria-label="Show passcode" aria-pressed="false" title="Show / hide passcode">
+          <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
+      <div class="recover-box">
+        <div class="lock-sub" style="margin-bottom:12px">Offline Recovery Phrase — 8 random words. Save these NOW (paper / password manager). They are the only way to recover a forgotten passcode without wiping this device.</div>
+        <div id="recoverPhraseOut" class="phrase-out" aria-label="Recovery phrase"></div>
+        <div class="controls" style="margin-top:14px">
+          <button type="button" id="copyPhraseBtn" class="ghost smallbtn">Copy Phrase</button>
+          <button type="button" id="regenPhraseBtn" class="ghost smallbtn">Regenerate</button>
+        </div>
+        <label class="ack"><input type="checkbox" id="recoverAck" /> I have saved my recovery phrase offline</label>
+      </div>
       <div id="setupError" class="error-text"></div>
       <div class="controls" style="margin-top: 24px;">
-        <button id="setPassBtn">Set Passcode & Enter</button>
+        <button id="setPassBtn" title="Set the passcode and unlock this device" disabled>Set Passcode & Enter</button>
       </div>
     </div>
 
     <!-- Unlock Mode -->
     <div id="unlockMode" style="display: none;">
+      <div id="unlockPassWrap">
       <div class="lock-sub">Local terminal locked. Enter your device passcode to access the interface.</div>
-      <input id="unlockPass" type="password" placeholder="Device Passcode" />
+      <div class="pass-wrap">
+        <input id="unlockPass" type="password" placeholder="Device Passcode" autocomplete="current-password" spellcheck="false" />
+        <button type="button" id="toggleUnlockPass" class="toggle-pass" aria-label="Show passcode" aria-pressed="false" title="Show / hide passcode">
+          <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
       <div id="unlockError" class="error-text"></div>
       <div class="controls" style="margin-top: 24px;">
         <button id="unlockBtn">Decrypt Terminal</button>
-        <button id="forgotBtn" class="ghost">Forgot?</button>
+        <button id="forgotBtn" class="ghost" title="Recover access with your offline recovery phrase">Forgot?</button>
+      </div>
+      </div>
+
+      <div id="recoverMode" style="display: none;">
+        <div class="lock-sub">Forgot your passcode? Enter your offline recovery phrase to set a new one.</div>
+        <input id="recoverPhrase" type="text" placeholder="e.g. orbit lantern …" autocomplete="off" spellcheck="false" />
+        <div id="recoverError" class="error-text"></div>
+        <div class="controls" style="margin-top: 20px;">
+          <button id="recoverBtn">Recover</button>
+          <button id="recoverBack" class="ghost">Back</button>
+        </div>
+        <div class="note">Lost your phrase too? <span id="recoverFullReset" class="linklike">Full device reset</span> wipes local data.</div>
+        <div id="recoverSetNew" style="display:none">
+          <div class="lock-sub" style="margin-bottom:16px">Recovery verified. Set a new device passcode.</div>
+          <div class="pass-wrap">
+            <input id="recoverNewPass" type="password" placeholder="New Device Passcode" autocomplete="new-password" spellcheck="false" />
+            <button type="button" id="toggleRecoverNewPass" class="toggle-pass" aria-label="Show passcode" aria-pressed="false" title="Show / hide passcode">
+              <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <div class="pass-wrap" style="margin-top: 12px;">
+            <input id="recoverNewPassConfirm" type="password" placeholder="Confirm New Device Passcode" autocomplete="new-password" spellcheck="false" />
+            <button type="button" id="toggleRecoverNewPassConfirm" class="toggle-pass" aria-label="Show passcode" aria-pressed="false" title="Show / hide passcode">
+              <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <div id="recoverNewPassError" class="error-text"></div>
+          <div class="controls" style="margin-top: 24px;">
+            <button id="recoverSetNewBtn">Set New Passcode & Enter</button>
+          </div>
+        </div>
       </div>
     </div>
 
