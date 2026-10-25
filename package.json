@@ -4,6 +4,8 @@
   "description": "Client-side steganography tool — compress, encrypt, and hide files inside PNG images.",
   "private": true,
   "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "start": "python3 -m http.server 8000",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:install": "playwright install chromium"

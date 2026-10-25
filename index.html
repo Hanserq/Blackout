@@ -8,178 +8,243 @@
 <meta name="theme-color" content="#03070a" />
 <title>Blackout v2.3.0 — Encrypt & Compress → PNG</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2303070a'/%3E%3Cpath d='M20 44V20h12a10 10 0 0 1 0 20h-6' fill='none' stroke='%2300ff88' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css" />
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2303070a'/%3E%3Cpath d='M20 44V20h12a10 10 0 0 1 0 20h-6' fill='none' stroke='%2300ff88' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="style.css?v=2.3.3" />
 </head>
 <body>
 <noscript><div class="noscript">Blackout requires JavaScript (Web Crypto + Compression APIs) to run. Please enable JavaScript and reload.</div></noscript>
+<!-- Top Navigation Bar -->
+<header class="top-nav">
+  <div class="top-nav-inner">
+    <div class="nav-brand">
+      <a href="#studio" class="brand-link" title="Blackout Steganography">
+        <span class="brand-name">Blackout</span>
+        <span class="brand-version">v2.3</span>
+      </a>
+    </div>
+    <nav class="nav-menu" id="topNavMenu" aria-label="Page navigation">
+      <a href="#studio" class="nav-item active" data-target="studio">Studio</a>
+      <a href="#diagnostics" class="nav-item" data-target="diagnostics">Diagnostics &amp; Inspector</a>
+      <a href="#security" class="nav-item" data-target="security">Security &amp; Protocol</a>
+    </nav>
+    <div class="nav-actions">
+      <button type="button" id="quickLockBtn" class="ghost smallbtn lock-nav-btn" title="Lock the application and switch to device passcode screen">Lock Device</button>
+    </div>
+  </div>
+</header>
+
 <div class="app" id="app">
-  <h1>Blackout <span>v2.3</span></h1>
-  <p class="lead">Deeply compressed steganography tool. Encrypt data and securely hide within a PNG. Your workflow operates exclusively on your device—no cloud backups.</p>
-
-  <div class="row">
-    <div class="card">
-      <div class="drop-field" id="fileDrop">
-        <div class="drop-header">
-          <label for="fileIn">File (input) — click or drop</label>
-          <button type="button" id="importCloudBtn" class="ghost smallbtn cloud-inline-btn" title="Import file directly from your cloud storage / synced vault">☁️ Cloud Vault</button>
+  <!-- Studio Section -->
+  <section class="page-section" id="studio">
+    <div class="section-hero">
+      <div class="hero-text-wrap">
+        <h1 class="hero-title">Steganography &amp; Cipher Studio</h1>
+        <p class="hero-lead">Client-side steganographic concealment. Compress, encrypt, and conceal sensitive files and messages within PNG, PDF, and image carriers entirely offline.</p>
+      </div>
+      <!-- Upper Display Warning Banner -->
+      <div class="warning-banner" role="alert">
+        <div class="warning-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
-        <input id="fileIn" type="file" />
-        <div id="fileInfo" class="file-info" style="display:none"></div>
-      </div>
-
-      <div class="hp"></div>
-      <label for="password">File Encryption Password</label>
-      <div class="pass-wrap">
-        <input id="password" type="password" placeholder="Enter secure payload key" autocomplete="new-password" spellcheck="false" />
-        <button type="button" id="togglePass" class="toggle-pass" aria-label="Show password" aria-pressed="false" title="Show / hide password">
-          <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-        </button>
-      </div>
-      <div class="row2 pass-tools">
-        <button id="genPassBtn" type="button" class="ghost smallbtn" title="Generate a random strong password">Generate Password</button>
-        <div class="strength" title="Password strength estimate">
-          <div class="strength-bar"><div id="strengthFill" class="strength-fill" data-level="0"></div></div>
-          <span id="strengthLabel" class="strength-label">—</span>
+        <div class="warning-content">
+          <div class="warning-title">Carrier Integrity Advisory</div>
+          <div class="warning-desc">Some messaging platforms or image optimizers strip custom metadata chunks during re-encoding. Keep master backups of your primary source assets.</div>
         </div>
-      </div>
-
-      <div class="hp"></div>
-      <label for="mode">Mode</label>
-      <select id="mode">
-        <option value="encrypt">Encrypt, Compress & Hide → PNG (default)</option>
-        <option value="encrypt-raw">Encrypt & Compress → raw .blackout (advanced)</option>
-        <option value="decrypt">Decrypt & Decompress (from .blackout or camo PNG)</option>
-        <option value="camo">Embed existing .blackout into PNG (camo)</option>
-        <option value="decamo">Extract from Camo PNG</option>
-        <option value="text-encrypt">Encrypt Message (text) → container / PNG</option>
-        <option value="text-decrypt">Decrypt → Show Message (text)</option>
-      </select>
-
-      <div class="hp"></div>
-      <div class="drop-field" id="coverDrop" style="display:none">
-        <label for="coverIn" id="coverLabel">Cover PNG (for camo / encrypt)</label>
-        <input id="coverIn" type="file" accept="image/png" />
-        <div id="coverInfo" class="file-info" style="display:none"></div>
-        <div class="row2" style="margin-top:12px">
-          <button id="makeBlackCover" class="ghost smallbtn" title="Generate a solid black 1024×1024 PNG cover">Forge Black PNG</button>
-          <button id="useDemoCover" class="ghost smallbtn" title="Load the built-in demo cover image">Load Demo Cover</button>
-        </div>
-      </div>
-
-      <div class="hp"></div>
-      <label for="outputName">Output File Name (optional)</label>
-      <input id="outputName" type="text" placeholder="Leave empty for a smart default — works for encrypt & decrypt" autocomplete="off" spellcheck="false" />
-      <div class="field-hint">Used in every mode. Encrypt modes append the right extension automatically; decrypt restores the original filename when left empty.</div>
-
-      <div class="hp"></div>
-      <div id="textWrap" style="display:none">
-        <label for="textInput" id="textLabel">Message to Encrypt (text mode)</label>
-        <textarea id="textInput" rows="5" placeholder="Type or paste a message here…" autocomplete="off" spellcheck="false"></textarea>
-        <div class="row2" style="margin-top:10px">
-          <button id="copyMsgBtn" type="button" class="ghost smallbtn" title="Copy the message to the clipboard">Copy Message</button>
-          <button id="clearTextBtn" type="button" class="ghost smallbtn" title="Clear the message box">Clear Text</button>
-        </div>
-      </div>
-
-      <div class="hp"></div>
-      <div class="flexrow" style="margin-top:20px;">
-        <button id="goBtn" title="Execute the selected protocol">Execute Protocol</button>
-        <button id="downloadBtn" class="ghost" style="display:none" title="Download the generated artifact">Export Artifact</button>
-        <button id="saveCloudBtn" class="ghost cloud-btn" style="display:none" title="Save encrypted artifact to cloud storage with context note">☁️ Save to Cloud</button>
-        <button id="clearBtn" class="ghost" title="Clear inputs, password and console output">Wipe Cache</button>
-      </div>
-      <div class="hint">Warning: some apps or image optimizers may strip hidden payload chunks when editing or recompressing Camo PNG images. Keep backups of your primary assets.</div>
-      <div id="status" class="output" role="status" aria-live="polite" style="display:none"></div>
-      <div id="progressWrap" class="progress-wrap" role="progressbar" aria-label="Processing" style="display:none">
-        <div class="progress-track"><div class="progress-bar"></div></div>
-        <div id="progressLabel" class="progress-label">Working…</div>
       </div>
     </div>
 
-    <div class="card">
-      <label>System Diagnostics & Ops</label>
-      <div class="row2">
+    <!-- Primary Workflow Navigation Tabs (Clean text, no emojis) -->
+    <div class="mode-tabs" id="modeTabs" role="tablist" aria-label="Blackout Modes">
+      <button type="button" class="mode-tab active" data-mode="encrypt" role="tab" aria-selected="true" title="Encrypt, compress, and conceal a file into a carrier cover">
+        <span class="tab-text">Encrypt &amp; Hide</span>
+      </button>
+      <button type="button" class="mode-tab" data-mode="decrypt" role="tab" aria-selected="false" title="Restore original file from a .blackout container or camo carrier">
+        <span class="tab-text">Decrypt</span>
+      </button>
+      <button type="button" class="mode-tab" data-mode="camo" role="tab" aria-selected="false" title="Steganography tools: embed or extract .blackout containers from carrier">
+        <span class="tab-text">Camo / Extract</span>
+      </button>
+      <button type="button" class="mode-tab" data-mode="text-encrypt" role="tab" aria-selected="false" title="Encrypt or decrypt short secret messages without a file">
+        <span class="tab-text">Secret Note</span>
+      </button>
+    </div>
+
+    <div class="card unified-studio-card">
+      <div class="studio-grid">
+        <!-- Left Side: Source Input & Protocol Config -->
+        <div class="studio-col studio-left">
+          <div class="drop-field" id="fileDrop">
+            <div class="drop-header">
+              <label for="fileIn" id="fileInLabel">File (input) — click or drop</label>
+            </div>
+            <input id="fileIn" type="file" />
+            <div id="fileInfo" class="file-info" style="display:none"></div>
+          </div>
+
+          <div class="hp"></div>
+          <label for="password">File Encryption Password</label>
+          <div class="pass-wrap">
+            <input id="password" type="password" placeholder="Enter secure payload key" autocomplete="new-password" spellcheck="false" />
+            <button type="button" id="togglePass" class="toggle-pass" aria-label="Show password" aria-pressed="false" title="Show / hide password">
+              <svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <div class="row2 pass-tools">
+            <div class="pass-btn-group">
+              <button id="genPassBtn" type="button" class="ghost smallbtn" title="Generate a random high-entropy alphanumeric password">Random Key</button>
+              <button id="genPhraseBtn" type="button" class="ghost smallbtn" title="Generate a memorable 4-word passphrase">Passphrase</button>
+            </div>
+            <div class="strength" title="Password strength estimate">
+              <div class="strength-bar"><div id="strengthFill" class="strength-fill" data-level="0"></div></div>
+              <span id="strengthLabel" class="strength-label">—</span>
+            </div>
+          </div>
+
+          <div class="hp"></div>
+          <div class="mode-select-wrap">
+            <label for="mode">Protocol Mode</label>
+            <select id="mode">
+              <option value="encrypt">Encrypt, Compress &amp; Hide → PNG (default)</option>
+              <option value="encrypt-raw">Encrypt &amp; Compress → raw .blackout (advanced)</option>
+              <option value="decrypt">Decrypt &amp; Decompress (from .blackout or camo PNG)</option>
+              <option value="camo">Embed existing .blackout into PNG (camo)</option>
+              <option value="decamo">Extract from Camo PNG</option>
+              <option value="text-encrypt">Encrypt Message (text) → container / PNG</option>
+              <option value="text-decrypt">Decrypt → Show Message (text)</option>
+            </select>
+          </div>
+
+          <div class="hp"></div>
+          <div class="drop-field" id="coverDrop" style="display:none">
+            <label for="coverIn" id="coverLabel">Cover / Carrier File (PDF, Image, PNG, or any file)</label>
+            <input id="coverIn" type="file" accept="image/png,image/jpeg,application/pdf,*/*" />
+            <div id="coverInfo" class="file-info" style="display:none"></div>
+            <div id="coverPreviewWrap" class="cover-preview-wrap" style="display:none">
+              <img id="coverPreviewImg" class="cover-preview-img" alt="Cover preview" />
+              <div class="cover-preview-meta">
+                <span id="coverMetaDims">1024 × 1024</span>
+                <span id="coverMetaTag" class="preview-badge">Cover PNG</span>
+              </div>
+            </div>
+            <div class="row2" style="margin-top:12px">
+              <button id="makeBlackCover" class="ghost smallbtn" title="Generate a solid black 1024×1024 PNG cover">Forge Black PNG</button>
+              <button id="useDemoCover" class="ghost smallbtn" title="Load the built-in demo cover image">Load Demo Cover</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Payload, Target & Live Output -->
+        <div class="studio-col studio-right">
+          <div id="textWrap" style="display:none">
+            <label for="textInput" id="textLabel">Message to Encrypt (text mode)</label>
+            <textarea id="textInput" rows="5" placeholder="Type or paste a message here…" autocomplete="off" spellcheck="false"></textarea>
+            <div class="row2" style="margin-top:10px">
+              <button id="copyMsgBtn" type="button" class="ghost smallbtn" title="Copy the message to the clipboard">Copy Message</button>
+              <button id="clearTextBtn" type="button" class="ghost smallbtn" title="Clear the message box">Clear Text</button>
+            </div>
+            <div class="hp"></div>
+          </div>
+
+          <label for="outputName">Output File Name (optional)</label>
+          <input id="outputName" type="text" placeholder="Leave empty for a smart default — works for encrypt & decrypt" autocomplete="off" spellcheck="false" />
+          <div class="field-hint">Used in every mode. Encrypt modes append the right extension automatically; decrypt restores the original filename when left empty.</div>
+
+          <div class="flexrow studio-action-bar" style="margin-top:20px;">
+            <button id="goBtn" title="Execute the selected protocol">Execute Protocol</button>
+            <button id="downloadBtn" class="ghost highlight-btn" style="display:none" title="Download the generated artifact">Export Artifact</button>
+            <button id="clearBtn" class="ghost" title="Clear inputs, password and console output">Wipe Cache</button>
+          </div>
+
+          <!-- Active Output & Artifact Area -->
+          <div class="artifact-subpanel" style="margin-top: 24px;">
+            <label>Active Output &amp; Artifact</label>
+            <div id="status" class="output" role="status" aria-live="polite" style="display:none"></div>
+            <div id="progressWrap" class="progress-wrap" role="progressbar" aria-label="Processing" style="display:none">
+              <div class="progress-track"><div class="progress-bar"></div></div>
+              <div id="progressLabel" class="progress-label">Working…</div>
+            </div>
+
+            <div id="artifactPreviewWrap" class="artifact-card" style="display:none">
+              <div class="artifact-card-header">
+                <span class="artifact-badge">Ready for Export</span>
+                <span id="artifactSizeBadge" class="artifact-size-badge"></span>
+              </div>
+              <div class="artifact-card-body">
+                <img id="artifactPreviewImg" class="artifact-thumbnail" style="display:none" alt="Artifact thumbnail" />
+                <div class="artifact-info">
+                  <div id="artifactFileName" class="artifact-name">output.png</div>
+                  <div id="artifactFileDetail" class="artifact-sub">AES-256-GCM + GZIP Compressed</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Diagnostics & Inspector Section -->
+  <section class="page-section" id="diagnostics">
+    <div class="section-header">
+      <h2 class="section-title">Diagnostics &amp; Inspector Workbench</h2>
+      <p class="section-subtitle">Low-level chunk structure analysis, nested container packaging, and offline recovery maintenance.</p>
+    </div>
+
+    <div class="card diagnostics-card">
+      <label>System Diagnostics &amp; Ops</label>
+      <div class="row2 ops-button-grid">
         <button id="reencryptBtn" class="ghost smallbtn" title="Wrap the selected file in a new encrypted container">Nested Re-encrypt</button>
         <button id="inspectBtn" class="ghost smallbtn" title="List all PNG chunks in the selected image">Inspect PNG Payload</button>
         <button id="metaInspectBtn" class="ghost smallbtn" title="Decrypt and print embedded metadata (requires password)">Verify Metadata</button>
         <button id="viewRecoveryBtn" class="ghost smallbtn" title="Reveal your offline recovery phrase (requires device passcode)">Show Recovery Phrase</button>
       </div>
       <div class="hp"></div>
-      <label for="lastOut">Console Output</label>
-      <div id="lastOut" class="output" role="log" aria-live="polite" style="min-height: 100px;">Awaiting instructions...</div>
-      <div class="footer">
-        <div class="muted">System status: Online</div>
+      <div class="console-header">
+        <label for="lastOut" style="margin:0;">Console Output</label>
+        <button id="clearConsoleBtn" type="button" class="ghost smallbtn" style="padding: 2px 10px; font-size: 11px;">Clear</button>
+      </div>
+      <div id="lastOut" class="output console-terminal" role="log" aria-live="polite" style="min-height: 140px;">Awaiting instructions...</div>
+      <div class="footer" style="margin-top: 16px; justify-content: flex-end;">
         <div class="muted" style="cursor: pointer; text-decoration: underline;" id="deviceResetBtn" title="Lock the application and reset the device passcode">Reset Device Lock</div>
       </div>
     </div>
-  </div>
-</div>
+  </section>
 
-<!-- Cloud Storage & Context Note Modal -->
-<div id="cloudModal" class="modal-overlay" style="display:none" aria-hidden="true" role="dialog" aria-labelledby="cloudModalTitle">
-  <div class="modal-card">
-    <div class="modal-header">
-      <h3 id="cloudModalTitle">☁️ Save to Cloud Storage</h3>
-      <button type="button" id="closeCloudModal" class="close-btn" aria-label="Close modal">&times;</button>
+  <!-- Security & Protocol Section -->
+  <section class="page-section" id="security">
+    <div class="section-header">
+      <h2 class="section-title">Security Architecture &amp; Specifications</h2>
+      <p class="section-subtitle">Formal cryptographic guarantees designed for air-gapped confidential communications.</p>
     </div>
-    <div class="modal-body">
-      <p class="modal-sub">Save your encrypted artifact directly into your personal cloud storage (Google Drive, Microsoft OneDrive, or local synced iCloud folder) without losing byte integrity.</p>
 
-      <div class="cloud-providers">
-        <label class="provider-option active" data-provider="system">
-          <input type="radio" name="cloudProvider" value="system" checked />
-          <div class="provider-icon">📁</div>
-          <div class="provider-info">
-            <div class="provider-title">Local Cloud Sync / System Picker <span style="color:var(--accent); font-size:11px; margin-left:6px;">(Recommended — Instant 1-Click)</span></div>
-            <div class="provider-desc">Saves directly to your local Google Drive, OneDrive, or iCloud Drive synced folder on your computer. Zero setup, no API keys or logins required.</div>
-          </div>
-        </label>
-        <label class="provider-option" data-provider="gdrive">
-          <input type="radio" name="cloudProvider" value="gdrive" />
-          <div class="provider-icon">🟢</div>
-          <div class="provider-info">
-            <div class="provider-title">Google Drive Web API</div>
-            <div class="provider-desc">Direct upload to a "Blackout Vault" folder in your Google Drive via Google OAuth popup login.</div>
-          </div>
-        </label>
+    <div class="specs-grid">
+      <div class="spec-card">
+        <span class="spec-tag">Cipher Suite</span>
+        <h3>AES-256-GCM</h3>
+        <p>Symmetric authenticated encryption provides both confidentiality and cryptographic tamper-proofing. Each session derives a unique 96-bit initialization vector (IV).</p>
       </div>
 
-      <div id="gdriveAuthWrap" style="display:none; margin-top:14px;">
-        <label>Google OAuth Authentication</label>
-        <div class="row2" style="margin-top:6px;">
-          <button type="button" id="gdriveSignInBtn" class="gdrive-oauth-btn" title="Sign in with your Google account via official OAuth popup">
-            <svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align:middle; margin-right:8px;"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-            Sign In with Google
-          </button>
-        </div>
-        <div id="gdriveStatusText" class="field-hint" style="margin-top:8px;">Click to open Google Sign-In popup and authorize Blackout.</div>
-
-        <details style="margin-top:10px;">
-          <summary style="cursor:pointer; font-size:12px; color:var(--muted);">OAuth Details & How to get a Token / Client ID</summary>
-          <div style="margin-top:8px; font-size:12px; color:var(--muted); line-height:1.5;">
-            <p style="margin:0 0 6px;"><strong>Option A (Host Setup)</strong>: Set your Web OAuth Client ID in <code>cloud.js</code> (<code>CONFIG.googleClientId</code>). Once set, the button above opens Google Sign-In instantly with zero user setup.</p>
-            <p style="margin:0 0 6px;"><strong>Option B (Personal Client ID)</strong>: Paste your personal Google Cloud Client ID below:</p>
-            <input id="gdriveClientId" type="text" placeholder="e.g. 123456789-abc.apps.googleusercontent.com" autocomplete="off" spellcheck="false" style="margin-bottom:8px;" />
-            <p style="margin:0 0 6px;"><strong>Option C (Instant Token)</strong>: Get a 1-hour access token from <a href="https://developers.google.com/oauthplayground/" target="_blank" rel="noopener" style="color:var(--accent);">Google OAuth Playground</a> (select <em>Drive API v3 drive.file</em> scope) and paste it below:</p>
-            <input id="gdriveToken" type="password" placeholder="Paste Access Token (ya29.a0...)" autocomplete="off" spellcheck="false" />
-          </div>
-        </details>
+      <div class="spec-card">
+        <span class="spec-tag">Key Hardening</span>
+        <h3>PBKDF2 (100,000 Rounds)</h3>
+        <p>Passwords are stretched with 100,000 iterations of HMAC-SHA-256 and a 16-byte cryptographically secure random salt, thwarting GPU/ASIC rainbow table attacks.</p>
       </div>
 
-      <div class="hp"></div>
-      <label for="cloudContextNote">Secret Context Note / Description (Optional)</label>
-      <textarea id="cloudContextNote" rows="3" placeholder="Add a hint, reason, or password reminder note (e.g. 'Financial tax backup 2026 — pass is pet name')..." spellcheck="false"></textarea>
-      <div class="field-hint">This context note will be saved alongside the file in your cloud vault so you always remember why you saved it.</div>
+      <div class="spec-card">
+        <span class="spec-tag">Entropy Reduction</span>
+        <h3>GZIP Deflation Stream</h3>
+        <p>Payload data is compressed before encryption, flattening plaintext entropy patterns and minimizing the carrier footprint for seamless concealment.</p>
+      </div>
 
-      <div id="cloudModalStatus" class="error-text" style="display:none; margin-top:12px;"></div>
+      <div class="spec-card">
+        <span class="spec-tag">Steganography</span>
+        <h3>Dual Carrier Concealment</h3>
+        <p>Conceal payloads within standard PNG ancillary chunks (<code>bLoK</code>) or append via binary trailer markers to PDF, JPEG, and documents while preserving original viewing capability.</p>
+      </div>
     </div>
-    <div class="modal-footer">
-      <button type="button" id="confirmCloudSaveBtn">Save Artifact to Cloud</button>
-      <button type="button" id="cancelCloudModalBtn" class="ghost">Cancel</button>
-    </div>
-  </div>
+  </section>
 </div>
 
 <!-- Lock overlay -->
@@ -190,7 +255,7 @@
     <!-- Insecure Context Warning (shown when loaded over HTTP on a non-localhost origin) -->
     <div id="insecureMode" style="display:none;">
       <div class="lock-sub" style="color:#ffb3b3; font-weight:600; margin-bottom:12px; font-size:1rem;">
-        ⚠️ Insecure Connection Detected
+        Insecure Connection Detected
       </div>
       <div class="lock-sub" style="margin-bottom:18px; line-height:1.7;">
         You are accessing Blackout over <strong>plain HTTP</strong> (e.g. a local IP like
@@ -303,7 +368,15 @@
   </div>
 </div>
 
-<script src="cloud.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=2.3.3"></script>
+<script>
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js?v=2.3.3').then(reg => {
+        reg.update();
+      }).catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>

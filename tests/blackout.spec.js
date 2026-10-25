@@ -11,6 +11,11 @@ const TINY_PNG = Buffer.from(
   'base64'
 );
 
+// Minimal valid PDF document.
+const MINIMAL_PDF = Buffer.from(
+  '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 300 144]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000052 00000 n\n0000000101 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF\n'
+);
+
 async function unlockApp(page) {
   const setup = page.locator('#setupMode');
   const didSetup = await setup.isVisible();
@@ -319,29 +324,95 @@ test.describe('Blackout', () => {
     expect(out.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   });
 
-  test('cloud save modal opens after encryption and accepts secret context note', async ({ page }) => {
+  test('inspect PNG chunk payload detects chunks and displays breakdown', async ({ page }) => {
     await page.goto('/');
     await unlockApp(page);
 
-    await page.selectOption('#mode', 'text-encrypt');
-    await page.fill('#textInput', 'secret cloud message');
+    // Default mode is 'encrypt' (auto-forges PNG cover with embedded bLoK chunk)
+    await page.setInputFiles('#fileIn', { name: 'secret.txt', mimeType: 'text/plain', buffer: Buffer.from('chunk inspection test') });
     await page.fill('#password', PASSWORD);
     await page.click('#goBtn');
 
-    // Save to Cloud button becomes visible
-    await expect(page.locator('#saveCloudBtn')).toBeVisible();
-    await page.click('#saveCloudBtn');
+    const dl = page.waitForEvent('download');
+    await page.click('#downloadBtn');
+    const download = await dl;
+    const p = await download.path();
+    const camoPngBuffer = fs.readFileSync(p);
 
-    // Cloud Modal appears
-    await expect(page.locator('#cloudModal')).toBeVisible();
+    // Provide the camo PNG and inspect chunks
+    await page.setInputFiles('#fileIn', { name: 'camo.png', mimeType: 'image/png', buffer: camoPngBuffer });
+    await page.click('#inspectBtn');
 
-    // Fill secret context note
-    await page.fill('#cloudContextNote', 'Personal tax records key hint');
-    await expect(page.locator('#cloudContextNote')).toHaveValue('Personal tax records key hint');
+    await expect(page.locator('#lastOut')).toContainText('bLoK');
+    await expect(page.locator('#lastOut')).toContainText('IHDR');
+    await expect(page.locator('#lastOut')).toContainText('IEND');
+  });
 
-    // Close modal
-    await page.click('#closeCloudModal');
-    await expect(page.locator('#cloudModal')).toBeHidden();
+  test('secret note embedded into PDF carrier preserves .pdf format and decrypts exact message', async ({ page }) => {
+    await page.goto('/');
+    await unlockApp(page);
+
+    const SECRET_MEMO = 'Confidential Board Directive 2026';
+
+    // 1. Secret Note mode (text-encrypt) with PDF carrier
+    await page.selectOption('#mode', 'text-encrypt');
+    await page.fill('#textInput', SECRET_MEMO);
+    await page.fill('#password', PASSWORD);
+    await page.setInputFiles('#coverIn', { name: 'annual_report.pdf', mimeType: 'application/pdf', buffer: MINIMAL_PDF });
+    await page.click('#goBtn');
+
+    const dl = page.waitForEvent('download');
+    await page.click('#downloadBtn');
+    const download = await dl;
+
+    // Preserves .pdf format and extension
+    expect(download.suggestedFilename()).toBe('annual_report.pdf');
+    const carrierPdf = fs.readFileSync(await download.path());
+
+    // Valid PDF starts with %PDF- and ends with %%EOF
+    expect(carrierPdf.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(carrierPdf.toString()).toContain('%%EOF');
+
+    // 2. Decrypt secret message from the PDF carrier
+    await page.selectOption('#mode', 'text-decrypt');
+    await page.setInputFiles('#fileIn', { name: 'annual_report.pdf', mimeType: 'application/pdf', buffer: carrierPdf });
+    await page.click('#goBtn');
+
+    await expect(page.locator('#status')).toContainText('Message decrypted');
+    await expect(page.locator('#textInput')).toHaveValue(SECRET_MEMO);
+  });
+
+  test('secret note mode with carrier PNG selected in primary fileIn preserves .png format', async ({ page }) => {
+    await page.goto('/');
+    await unlockApp(page);
+
+    const SECRET_MSG = 'Hide this directly inside my emblem PNG!';
+
+    // 1. Select Secret Note tab
+    await page.click('.mode-tab[data-mode="text-encrypt"]');
+    await page.fill('#textInput', SECRET_MSG);
+    await page.fill('#password', PASSWORD);
+
+    // Dropped into the primary fileIn drop zone (user workflow)
+    await page.setInputFiles('#fileIn', { name: 'emblem.png', mimeType: 'image/png', buffer: TINY_PNG });
+    await page.click('#goBtn');
+
+    const dl = page.waitForEvent('download');
+    await page.click('#downloadBtn');
+    const download = await dl;
+
+    // MUST be emblem.png, NOT message.txt.blackout
+    expect(download.suggestedFilename()).toBe('emblem.png');
+    const carrierPng = fs.readFileSync(await download.path());
+    expect(carrierPng.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+
+    // 2. Decrypt secret message
+    await page.selectOption('#mode', 'text-decrypt');
+    await page.setInputFiles('#fileIn', { name: 'emblem.png', mimeType: 'image/png', buffer: carrierPng });
+    await page.click('#goBtn');
+
+    await expect(page.locator('#status')).toContainText('Message decrypted');
+    await expect(page.locator('#textInput')).toHaveValue(SECRET_MSG);
   });
 });
 

@@ -3,6 +3,7 @@
 
 const UI = {
   fileIn: document.getElementById('fileIn'),
+  fileInLabel: document.getElementById('fileInLabel'),
   password: document.getElementById('password'),
   mode: document.getElementById('mode'),
   goBtn: document.getElementById('goBtn'),
@@ -28,24 +29,20 @@ const UI = {
   copyMsgBtn: document.getElementById('copyMsgBtn'),
   clearTextBtn: document.getElementById('clearTextBtn'),
   genPassBtn: document.getElementById('genPassBtn'),
+  genPhraseBtn: document.getElementById('genPhraseBtn'),
   strengthFill: document.getElementById('strengthFill'),
   strengthLabel: document.getElementById('strengthLabel'),
   progressWrap: document.getElementById('progressWrap'),
   progressBar: document.querySelector('.progress-bar'),
   progressLabel: document.getElementById('progressLabel'),
-  saveCloudBtn: document.getElementById('saveCloudBtn'),
-  importCloudBtn: document.getElementById('importCloudBtn'),
-  cloudModal: document.getElementById('cloudModal'),
-  closeCloudModal: document.getElementById('closeCloudModal'),
-  cancelCloudModalBtn: document.getElementById('cancelCloudModalBtn'),
-  confirmCloudSaveBtn: document.getElementById('confirmCloudSaveBtn'),
-  cloudContextNote: document.getElementById('cloudContextNote'),
-  cloudModalStatus: document.getElementById('cloudModalStatus'),
-  gdriveAuthWrap: document.getElementById('gdriveAuthWrap'),
-  gdriveToken: document.getElementById('gdriveToken'),
-  gdriveSignInBtn: document.getElementById('gdriveSignInBtn'),
-  gdriveStatusText: document.getElementById('gdriveStatusText'),
-  gdriveClientId: document.getElementById('gdriveClientId'),
+  modeTabs: document.getElementById('modeTabs'),
+  coverPreviewWrap: document.getElementById('coverPreviewWrap'),
+  coverPreviewImg: document.getElementById('coverPreviewImg'),
+  coverMetaDims: document.getElementById('coverMetaDims'),
+  artifactPreviewWrap: document.getElementById('artifactPreviewWrap'),
+  artifactPreviewImg: document.getElementById('artifactPreviewImg'),
+  artifactFileName: document.getElementById('artifactFileName'),
+  artifactSizeBadge: document.getElementById('artifactSizeBadge'),
 };
 
 const GO_LABEL = UI.goBtn.textContent;
@@ -384,6 +381,90 @@ function extractPngCamo(pngBytes) {
   throw new Error('no camo chunk found');
 }
 
+// ---------- Universal Carrier Steganography (PDF, Images, Any Document) ----------
+
+const CARRIER_START_STR = '%---BLACKOUT_PAYLOAD_START---%\n';
+const CARRIER_END_STR   = '\n%---BLACKOUT_PAYLOAD_END---%';
+const CARRIER_START_BYTES = new TextEncoder().encode(CARRIER_START_STR);
+const CARRIER_END_BYTES   = new TextEncoder().encode(CARRIER_END_STR);
+
+function findSubarray(haystack, needle, fromIndex = 0) {
+  if (needle.length === 0 || haystack.length < needle.length) return -1;
+  const limit = haystack.length - needle.length;
+  for (let i = fromIndex; i <= limit; i++) {
+    let match = true;
+    for (let j = 0; j < needle.length; j++) {
+      if (haystack[i + j] !== needle[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return i;
+  }
+  return -1;
+}
+
+function isPdfBytes(bytes) {
+  if (!bytes || bytes.length < 5) return false;
+  return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // '%PDF'
+}
+
+function insertUniversalCarrierPayload(carrierBytes, payloadBytes, isPdf = false) {
+  const pdfTrailer = isPdf ? new TextEncoder().encode('\n%%EOF\n') : new Uint8Array(0);
+  const totalLen = carrierBytes.length + CARRIER_START_BYTES.length + payloadBytes.length + CARRIER_END_BYTES.length + pdfTrailer.length;
+  const out = new Uint8Array(totalLen);
+  let offset = 0;
+  out.set(carrierBytes, offset); offset += carrierBytes.length;
+  out.set(CARRIER_START_BYTES, offset); offset += CARRIER_START_BYTES.length;
+  out.set(payloadBytes, offset); offset += payloadBytes.length;
+  out.set(CARRIER_END_BYTES, offset); offset += CARRIER_END_BYTES.length;
+  if (pdfTrailer.length > 0) {
+    out.set(pdfTrailer, offset);
+  }
+  return out;
+}
+
+function extractUniversalCarrierPayload(bytes) {
+  const startIdx = findSubarray(bytes, CARRIER_START_BYTES);
+  if (startIdx === -1) return null;
+  const payloadStart = startIdx + CARRIER_START_BYTES.length;
+  const endIdx = findSubarray(bytes, CARRIER_END_BYTES, payloadStart);
+  if (endIdx === -1) return null;
+  return bytes.slice(payloadStart, endIdx);
+}
+
+function hasBlkoutMagic(bytes) {
+  if (!bytes || bytes.length < 8) return false;
+  const magic = [66, 76, 75, 79, 85, 84, 48, 49]; // 'BLKOUT01'
+  for (let i = 0; i < 8; i++) {
+    if (bytes[i] !== magic[i]) return false;
+  }
+  return true;
+}
+
+function extractAnyCarrierPayload(bytes) {
+  if (!bytes || bytes.length === 0) return null;
+
+  // 1. Check universal carrier steganography marker (PDF, JPG, documents, audio)
+  const universal = extractUniversalCarrierPayload(bytes);
+  if (universal && universal.length > 0) return universal;
+
+  // 2. Check PNG bLoK chunk
+  if (isPng(bytes)) {
+    try {
+      const payload = extractPngCamo(bytes);
+      if (payload && payload.length > 0) return payload;
+    } catch (_) {}
+  }
+
+  // 3. Raw .blackout container
+  if (hasBlkoutMagic(bytes)) {
+    return bytes;
+  }
+
+  return null;
+}
+
 // CRC32 (IEEE)
 function crc32(buf) {
   let table = crc32.table;
@@ -423,7 +504,6 @@ function saveAsFile(buf, filename, mimeType) {
   UI._artifactUrl = url;
   UI._currentArtifact = { buffer: buf, filename: filename, mimeType: mimeType || 'application/octet-stream' };
   UI.downloadBtn.style.display='inline-block';
-  if (UI.saveCloudBtn) UI.saveCloudBtn.style.display='inline-block';
   UI.downloadBtn.onclick = ()=> {
     const a = document.createElement('a');
     a.href = url;
@@ -432,7 +512,22 @@ function saveAsFile(buf, filename, mimeType) {
     a.click();
     a.remove();
   };
-  logToConsole(filename + ' (ready to export / save to cloud)');
+
+  // Visual Artifact Preview Card
+  if (UI.artifactPreviewWrap) {
+    UI.artifactPreviewWrap.style.display = 'block';
+    if (UI.artifactFileName) UI.artifactFileName.textContent = filename;
+    if (UI.artifactSizeBadge) UI.artifactSizeBadge.textContent = formatBytes(buf.byteLength);
+    const isPngCover = (mimeType === 'image/png') || filename.toLowerCase().endsWith('.png');
+    if (isPngCover && UI.artifactPreviewImg) {
+      UI.artifactPreviewImg.src = url;
+      UI.artifactPreviewImg.style.display = 'block';
+    } else if (UI.artifactPreviewImg) {
+      UI.artifactPreviewImg.style.display = 'none';
+    }
+  }
+
+  logToConsole(filename + ' (ready to export)');
 }
 
 // black PNG generator for cover
@@ -464,9 +559,50 @@ function formatBytes(n) {
 
 function updateFileInfo(inputEl, infoEl) {
   const f = inputEl.files && inputEl.files[0];
-  if (!f) { infoEl.textContent = ''; infoEl.style.display = 'none'; return; }
+  if (!f) {
+    infoEl.textContent = '';
+    infoEl.style.display = 'none';
+    if (UI.coverPreviewWrap && (inputEl === UI.coverIn || UI.mode.value === 'text-encrypt')) {
+      UI.coverPreviewWrap.style.display = 'none';
+    }
+    return;
+  }
   infoEl.textContent = f.name + ' — ' + formatBytes(f.size);
   infoEl.style.display = 'block';
+
+  const shouldPreview = (inputEl === UI.coverIn) || (inputEl === UI.fileIn && UI.mode.value === 'text-encrypt');
+  if (shouldPreview && UI.coverPreviewWrap && UI.coverPreviewImg) {
+    try {
+      const isPngFile = f.type === 'image/png' || f.name.toLowerCase().endsWith('.png');
+      const isJpegFile = f.type === 'image/jpeg' || /\.(jpe?g)$/i.test(f.name);
+      const isWebpFile = f.type === 'image/webp' || f.name.toLowerCase().endsWith('.webp');
+      const isImg = isPngFile || isJpegFile || isWebpFile || f.type.startsWith('image/') || /\.(gif|svg)$/i.test(f.name);
+      const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+      if (isImg) {
+        const u = URL.createObjectURL(f);
+        UI.coverPreviewImg.src = u;
+        UI.coverPreviewImg.style.display = 'block';
+        const testImg = new Image();
+        testImg.onload = () => {
+          if (UI.coverMetaDims) UI.coverMetaDims.textContent = testImg.naturalWidth + ' × ' + testImg.naturalHeight + ' px';
+        };
+        testImg.src = u;
+      } else {
+        UI.coverPreviewImg.style.display = 'none';
+        if (UI.coverMetaDims) UI.coverMetaDims.textContent = isPdf ? 'PDF Document' : 'Carrier File';
+      }
+      const tagEl = document.getElementById('coverMetaTag');
+      if (tagEl) {
+        if (isPdf) tagEl.textContent = 'PDF Carrier';
+        else if (isPngFile) tagEl.textContent = 'PNG Carrier';
+        else if (isJpegFile) tagEl.textContent = 'JPEG Carrier';
+        else if (isWebpFile) tagEl.textContent = 'WebP Carrier';
+        else if (isImg) tagEl.textContent = 'Image Carrier';
+        else tagEl.textContent = 'Carrier File';
+      }
+      UI.coverPreviewWrap.style.display = 'flex';
+    } catch (_) {}
+  }
 }
 
 UI.fileIn.addEventListener('change', ()=> {
@@ -567,24 +703,43 @@ setupPassToggle('toggleUnlockPass', 'unlockPass');
 
 function toggleCoverUI() {
   const mode = UI.mode.value;
-  // text-encrypt shows the cover picker too so a leftover cover is never used invisibly
-  const show = (mode === 'encrypt' || mode === 'camo' || mode === 'text-encrypt');
-  UI.coverIn.style.display = show ? 'block' : 'none';
-  UI.coverLabel.textContent = mode === 'text-encrypt'
-    ? 'Cover PNG (optional — message will be embedded inside)'
-    : 'Cover PNG (for camo / encrypt)';
-  UI.coverLabel.style.display = show ? 'block' : 'none';
-  UI.makeBlackCover.style.display = show ? 'inline-block' : 'none';
-  UI.useDemoCover.style.display = show ? 'inline-block' : 'none';
-  if (UI.coverDrop) UI.coverDrop.style.display = show ? 'block' : 'none';
-  // text modes reveal the message box
   const isTextMode = (mode === 'text-encrypt' || mode === 'text-decrypt');
   UI.textWrap.style.display = isTextMode ? 'block' : 'none';
-  if (isTextMode) {
-    UI.textLabel.textContent = mode === 'text-encrypt'
-      ? 'Message to Encrypt (text mode)'
-      : 'Decrypted Message (read-only output) — shown here';
-    if (mode === 'text-decrypt') UI.textInput.readOnly = true; else UI.textInput.readOnly = false;
+
+  if (mode === 'text-encrypt') {
+    if (UI.fileInLabel) {
+      UI.fileInLabel.textContent = 'Carrier File (PDF, Image, PNG, etc. — optional: secret note hidden inside)';
+    }
+    UI.coverIn.style.display = 'block';
+    UI.coverLabel.textContent = 'Cover / Carrier File (PDF, Image, PNG, or any file — optional)';
+    UI.coverLabel.style.display = 'block';
+    UI.makeBlackCover.style.display = 'inline-block';
+    UI.useDemoCover.style.display = 'inline-block';
+    if (UI.coverDrop) UI.coverDrop.style.display = 'block';
+    UI.textLabel.textContent = 'Secret Message to Encrypt (will be hidden inside carrier without format change)';
+    UI.textInput.readOnly = false;
+  } else if (mode === 'text-decrypt') {
+    if (UI.fileInLabel) {
+      UI.fileInLabel.textContent = 'Carrier File to Decrypt (PDF, Image, PNG, or .blackout)';
+    }
+    UI.coverIn.style.display = 'none';
+    UI.coverLabel.style.display = 'none';
+    UI.makeBlackCover.style.display = 'none';
+    UI.useDemoCover.style.display = 'none';
+    if (UI.coverDrop) UI.coverDrop.style.display = 'none';
+    UI.textLabel.textContent = 'Decrypted Secret Message (read-only output) — shown here';
+    UI.textInput.readOnly = true;
+  } else {
+    if (UI.fileInLabel) {
+      UI.fileInLabel.textContent = 'File (input) — click or drop';
+    }
+    const show = (mode === 'encrypt' || mode === 'camo');
+    UI.coverIn.style.display = show ? 'block' : 'none';
+    UI.coverLabel.textContent = 'Cover PNG (for camo / encrypt)';
+    UI.coverLabel.style.display = show ? 'block' : 'none';
+    UI.makeBlackCover.style.display = show ? 'inline-block' : 'none';
+    UI.useDemoCover.style.display = show ? 'inline-block' : 'none';
+    if (UI.coverDrop) UI.coverDrop.style.display = show ? 'block' : 'none';
   }
 }
 UI.mode.addEventListener('change', toggleCoverUI);
@@ -684,13 +839,35 @@ UI.goBtn.addEventListener('click', async ()=> {
         const blob = await makeBlackPngBlob(1024,1024);
         coverFile = new File([blob], stripExt(file.name || 'cover') + '.png', {type:'image/png'});
       }
-      setProgress('Embedding into cover PNG…', 80);
-      const pngAb = await fileToArrayBuffer(coverFile);
-      const out = insertPngCamo(new Uint8Array(pngAb), new Uint8Array(container));
-      const outName = customOrDefault(UI.outputName.value, coverFile.name, '.png');
+      const carrierAb = await fileToArrayBuffer(coverFile);
+      const carrierBytes = new Uint8Array(carrierAb);
+      const isPngCover = isPng(carrierBytes);
+      const isPdf = isPdfBytes(carrierBytes) || coverFile.type === 'application/pdf' || coverFile.name.toLowerCase().endsWith('.pdf');
+      const isJpeg = (carrierBytes[0] === 0xFF && carrierBytes[1] === 0xD8) || /\.jpe?g$/i.test(coverFile.name);
+
+      let outBytes;
+      let mimeType;
+      let defaultExt;
+
+      if (isPngCover) {
+        setProgress('Embedding into PNG cover…', 80);
+        outBytes = insertPngCamo(carrierBytes, new Uint8Array(container));
+        mimeType = 'image/png';
+        defaultExt = '.png';
+      } else {
+        const typeStr = isPdf ? 'PDF' : (isJpeg ? 'JPEG' : 'Carrier');
+        setProgress(`Embedding into ${typeStr} carrier…`, 80);
+        outBytes = insertUniversalCarrierPayload(carrierBytes, new Uint8Array(container), isPdf);
+        mimeType = coverFile.type || (isPdf ? 'application/pdf' : 'application/octet-stream');
+        const extMatch = coverFile.name.match(/\.[0-9a-z]+$/i);
+        defaultExt = extMatch ? extMatch[0] : (isPdf ? '.pdf' : '');
+      }
+
+      const outName = customOrDefault(UI.outputName.value, coverFile.name, defaultExt);
       setProgress('Ready to download…', 100);
-      saveAsFile(out.buffer, outName, 'image/png');
-      logStatus('Compressed, encrypted, and embedded into PNG. Saved as ' + outName + ' (round-trip verified)');
+      saveAsFile(outBytes.buffer, outName, mimeType);
+      const carrierLabel = isPdf ? 'PDF' : (isPngCover ? 'PNG' : (isJpeg ? 'JPEG' : 'carrier'));
+      logStatus(`Compressed, encrypted, and embedded into ${carrierLabel}. Saved as ${outName} (round-trip verified)`);
     }
 
     else if (mode === 'camo') {
@@ -716,18 +893,15 @@ UI.goBtn.addEventListener('click', async ()=> {
 
     else if (mode === 'decrypt') {
       const ab = await fileToArrayBuffer(file);
-      let containerBuf = ab;
-      if (isPng(new Uint8Array(ab))) {
-        try {
-          setProgress('Extracting embedded payload…', 10);
-          const payload = extractPngCamo(new Uint8Array(ab));
-          containerBuf = payload.buffer;
-        } catch (e) {
-          logStatus('PNG selected, but no embedded payload (bLoK chunk) was found.', true);
-          return;
-        }
+      const fileBytes = new Uint8Array(ab);
+      setProgress('Extracting embedded payload…', 15);
+      const containerBytes = extractAnyCarrierPayload(fileBytes);
+      if (!containerBytes) {
+        logStatus('Selected file does not contain a recognized Blackout payload (bLoK chunk, carrier note, or BLKOUT01 container).', true);
+        return;
       }
       setProgress('Decrypting & decompressing…', 55);
+      const containerBuf = containerBytes.buffer ? containerBytes.buffer.slice(containerBytes.byteOffset, containerBytes.byteOffset + containerBytes.byteLength) : containerBytes;
       const pt = await decryptBytes(containerBuf, pass);
       const parsed = await parsePlainWithMetadata(pt);
       setProgress('Preparing download…', 90);
@@ -738,10 +912,16 @@ UI.goBtn.addEventListener('click', async ()=> {
 
     else if (mode === 'decamo') {
       setProgress('Extracting camo payload…', 20);
-      const pngAb = await fileToArrayBuffer(file);
-      const payload = extractPngCamo(new Uint8Array(pngAb));
+      const ab = await fileToArrayBuffer(file);
+      const fileBytes = new Uint8Array(ab);
+      const payload = extractAnyCarrierPayload(fileBytes);
+      if (!payload) {
+        logStatus('No embedded payload found in the selected file.', true);
+        return;
+      }
       setProgress('Ready to download…', 100);
-      saveAsFile(payload.buffer, customOrDefault(UI.outputName.value, 'extracted-' + file.name + '.blackout', '.blackout'), 'application/octet-stream');
+      const payloadBuf = payload.buffer ? payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength) : payload;
+      saveAsFile(payloadBuf, customOrDefault(UI.outputName.value, 'extracted-' + file.name + '.blackout', '.blackout'), 'application/octet-stream');
       logStatus('Extracted payload saved as raw .blackout. Use Decrypt mode to restore file.');
     }
 
@@ -754,15 +934,38 @@ UI.goBtn.addEventListener('click', async ()=> {
       const container = await encryptBytes(plain, pass);
       setProgress('Verifying round-trip…', 75);
       if (!(await verifyRoundTrip(container, pass, plain))) throw new Error('round-trip verification failed');
-      let coverFile = UI.coverIn.files[0];
+
+      // Use carrier file from either coverIn or fileIn
+      let coverFile = (UI.coverIn && UI.coverIn.files && UI.coverIn.files[0]) ||
+                      (UI.fileIn && UI.fileIn.files && UI.fileIn.files[0]);
       if (coverFile) {
-        setProgress('Embedding into cover PNG…', 85);
-        const pngAb = await fileToArrayBuffer(coverFile);
-        const out = insertPngCamo(new Uint8Array(pngAb), new Uint8Array(container));
-        const outName = customOrDefault(UI.outputName.value, coverFile.name, '.png');
+        const coverName = coverFile.name;
+        const isPdf = coverFile.type === 'application/pdf' || coverName.toLowerCase().endsWith('.pdf');
+        const carrierAb = await fileToArrayBuffer(coverFile);
+        const carrierBytes = new Uint8Array(carrierAb);
+        const isPngCover = isPng(carrierBytes);
+
+        setProgress(`Embedding into carrier (${isPdf ? 'PDF' : (isPngCover ? 'PNG' : 'Carrier')})…`, 85);
+
+        let outBytes;
+        let mimeType;
+        let defaultExt;
+
+        if (isPngCover) {
+          outBytes = insertPngCamo(carrierBytes, new Uint8Array(container));
+          mimeType = 'image/png';
+          defaultExt = '.png';
+        } else {
+          outBytes = insertUniversalCarrierPayload(carrierBytes, new Uint8Array(container), isPdf);
+          mimeType = coverFile.type || (isPdf ? 'application/pdf' : 'application/octet-stream');
+          const extMatch = coverName.match(/\.[0-9a-z]+$/i);
+          defaultExt = extMatch ? extMatch[0] : (isPdf ? '.pdf' : '');
+        }
+
+        const outName = customOrDefault(UI.outputName.value, coverName, defaultExt);
         setProgress('Ready to download…', 100);
-        saveAsFile(out.buffer, outName, 'image/png');
-        logStatus('Message encrypted & embedded into PNG. Saved as ' + outName + ' (round-trip verified)');
+        saveAsFile(outBytes.buffer, outName, mimeType);
+        logStatus(`Secret message encrypted into ${isPdf ? 'PDF' : (isPngCover ? 'PNG' : 'carrier file')}. Format preserved: ${outName}`);
       } else {
         const outName = customOrDefault(UI.outputName.value, 'message.txt.blackout', '.blackout');
         setProgress('Ready to download…', 100);
@@ -772,25 +975,30 @@ UI.goBtn.addEventListener('click', async ()=> {
     }
 
     else if (mode === 'text-decrypt') {
-      const ab = await fileToArrayBuffer(file);
-      let containerBuf = ab;
-      if (isPng(new Uint8Array(ab))) {
-        try {
-          setProgress('Extracting embedded payload…', 10);
-          const payload = extractPngCamo(new Uint8Array(ab));
-          containerBuf = payload.buffer;
-        } catch (e) {
-          logStatus('PNG selected, but no embedded payload (bLoK chunk) was found.', true);
-          return;
-        }
+      const activeFile = (UI.fileIn && UI.fileIn.files && UI.fileIn.files[0]) ||
+                         (UI.coverIn && UI.coverIn.files && UI.coverIn.files[0]);
+      if (!activeFile) {
+        logStatus('Select the carrier file (PDF, image, or .blackout) containing the secret message', true);
+        return;
       }
+      const ab = await fileToArrayBuffer(activeFile);
+      const fileBytes = new Uint8Array(ab);
+      setProgress('Detecting carrier and extracting payload…', 15);
+      const containerBytes = extractAnyCarrierPayload(fileBytes);
+
+      if (!containerBytes) {
+        logStatus('Selected file does not contain a recognized Blackout payload (bLoK chunk, carrier note, or BLKOUT01 container).', true);
+        return;
+      }
+
       setProgress('Decrypting & decompressing…', 55);
+      const containerBuf = containerBytes.buffer ? containerBytes.buffer.slice(containerBytes.byteOffset, containerBytes.byteOffset + containerBytes.byteLength) : containerBytes;
       const pt = await decryptBytes(containerBuf, pass);
       const parsed = await parsePlainWithMetadata(pt);
       const text = new TextDecoder().decode(parsed.fileBytes);
       UI.textInput.value = text;
       UI.textInput.readOnly = true;
-      logStatus('Message decrypted and shown in the text box above. Download also ready (' + formatBytes(parsed.fileBytes.byteLength) + ').');
+      logStatus('Message decrypted and shown in the text box above (' + formatBytes(parsed.fileBytes.byteLength) + ').');
       const suggested = sanitizeFileName(UI.outputName.value.trim() || (parsed.meta && parsed.meta.name) || 'message.txt');
       saveAsFile(parsed.fileBytes.buffer, suggested, parsed.meta.type || 'text/plain');
     }
@@ -822,25 +1030,39 @@ UI.reencryptBtn.addEventListener('click', async ()=> {
   }
 });
 
-// inspect PNG chunks
+// inspect chunks / carrier payload
 UI.inspectBtn.addEventListener('click', async ()=> {
   const f = UI.fileIn.files[0];
-  if (!f) { logStatus('Select a PNG to inspect', true); return; }
+  if (!f) { logStatus('Select a file to inspect', true); return; }
   try {
     const ab = await fileToArrayBuffer(f);
-    if (!isPng(new Uint8Array(ab))) { logStatus('Not a PNG', true); return; }
-    const chunks = [];
-    let off=8;
     const bytes = new Uint8Array(ab);
-    while (off+8 <= bytes.length) {
-      const len = readU32(bytes, off);
-      const type = String.fromCharCode(...bytes.slice(off+4, off+8));
-      const dataStart = off+8;
-      const next = dataStart + len + 4;
-      chunks.push({type, len});
-      off = next;
+    if (isPng(bytes)) {
+      const chunks = [];
+      let off=8;
+      while (off+8 <= bytes.length) {
+        const len = readU32(bytes, off);
+        const type = String.fromCharCode(...bytes.slice(off+4, off+8));
+        const dataStart = off+8;
+        const next = dataStart + len + 4;
+        chunks.push({type, len});
+        off = next;
+      }
+      const blokChunk = chunks.find(c => c.type === 'bLoK');
+      if (blokChunk) {
+        logToConsole(`Stego Payload Detected: "bLoK" chunk present (${formatBytes(blokChunk.len)})`, 'info');
+      } else {
+        logToConsole('Clean PNG: No "bLoK" hidden payload chunk found.', 'info');
+      }
+      logToConsole(JSON.stringify(chunks, null, 2), 'data');
+    } else {
+      const payload = extractUniversalCarrierPayload(bytes);
+      if (payload) {
+        logToConsole(`Carrier Stego Payload Detected in ${f.name} (${formatBytes(payload.length)})`, 'info');
+      } else {
+        logToConsole(`Clean File: No embedded carrier payload detected in ${f.name}.`, 'info');
+      }
     }
-    logToConsole(JSON.stringify(chunks, null, 2), 'data');
     UI.downloadBtn.style.display='none';
     hideStatus();
   } catch (e) {
@@ -851,14 +1073,13 @@ UI.inspectBtn.addEventListener('click', async ()=> {
 // meta inspect (requires password)
 UI.metaInspectBtn.addEventListener('click', async ()=> {
   const f = UI.fileIn.files[0];
-  if (!f) { logStatus('Select a .blackout or camo PNG to inspect', true); return; }
+  if (!f) { logStatus('Select a file to inspect', true); return; }
   if (!UI.password.value) { logStatus('Provide password to inspect metadata', true); return; }
   try {
     const ab = await fileToArrayBuffer(f);
-    let containerBuf = ab;
-    if (isPng(new Uint8Array(ab))) {
-      try { const payload = extractPngCamo(new Uint8Array(ab)); containerBuf = payload.buffer; } catch(e){}
-    }
+    const bytes = new Uint8Array(ab);
+    const container = extractAnyCarrierPayload(bytes) || bytes;
+    const containerBuf = container.buffer ? container.buffer.slice(container.byteOffset, container.byteOffset + container.byteLength) : container;
     const pt = await decryptBytes(containerBuf, UI.password.value);
     const parsed = await parsePlainWithMetadata(pt);
     logToConsole('metadata: ' + JSON.stringify(parsed.meta, null, 2), 'data');
@@ -874,6 +1095,8 @@ UI.clearBtn.addEventListener('click', ()=> {
   UI.fileIn.value=''; UI.coverIn.value=''; UI.password.value=''; UI.outputName.value=''; UI.textInput.value='';
   updateFileInfo(UI.fileIn, UI.fileInfo);
   updateFileInfo(UI.coverIn, UI.coverInfo);
+  if (UI.coverPreviewWrap) UI.coverPreviewWrap.style.display = 'none';
+  if (UI.artifactPreviewWrap) UI.artifactPreviewWrap.style.display = 'none';
   clearConsole();
   updateStrength();
   UI.downloadBtn.style.display='none';
@@ -1482,143 +1705,111 @@ window.addEventListener('load', () => {
   }
 });
 
-// ---------- Cloud Storage & Vault Event Handlers ----------
+// ---------- Workflow Mode Tabs Synchronization ----------
 
-function openCloudModal() {
-  if (!UI._currentArtifact) {
-    logStatus('No generated artifact available to save. Execute a protocol first.', true);
-    return;
-  }
-  UI.cloudModal.style.display = 'flex';
-  UI.cloudModal.setAttribute('aria-hidden', 'false');
-  UI.cloudModalStatus.style.display = 'none';
-  UI.cloudContextNote.value = '';
+function syncModeTabs(currentMode) {
+  if (!UI.modeTabs) return;
+  const tabs = UI.modeTabs.querySelectorAll('.mode-tab');
+  tabs.forEach(tab => {
+    const tabMode = tab.dataset.mode;
+    const isActive = (tabMode === currentMode) ||
+      (tabMode === 'encrypt' && currentMode === 'encrypt-raw') ||
+      (tabMode === 'camo' && currentMode === 'decamo') ||
+      (tabMode === 'text-encrypt' && currentMode === 'text-decrypt');
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
 }
 
-function closeCloudModal() {
-  UI.cloudModal.style.display = 'none';
-  UI.cloudModal.setAttribute('aria-hidden', 'true');
+if (UI.modeTabs) {
+  UI.modeTabs.addEventListener('click', (e) => {
+    const tabBtn = e.target.closest('.mode-tab');
+    if (!tabBtn) return;
+    const targetMode = tabBtn.dataset.mode;
+    if (targetMode && UI.mode) {
+      UI.mode.value = targetMode;
+      UI.mode.dispatchEvent(new Event('change', { bubbles: true }));
+      syncModeTabs(targetMode);
+    }
+  });
 }
 
-if (UI.saveCloudBtn) UI.saveCloudBtn.addEventListener('click', openCloudModal);
-if (UI.closeCloudModal) UI.closeCloudModal.addEventListener('click', closeCloudModal);
-if (UI.cancelCloudModalBtn) UI.cancelCloudModalBtn.addEventListener('click', closeCloudModal);
+UI.mode.addEventListener('change', () => {
+  syncModeTabs(UI.mode.value);
+});
 
-// Radio provider toggle
-document.querySelectorAll('input[name="cloudProvider"]').forEach(radio => {
-  radio.addEventListener('change', (e) => {
-    document.querySelectorAll('.provider-option').forEach(opt => opt.classList.remove('active'));
-    const parentLabel = e.target.closest('.provider-option');
-    if (parentLabel) parentLabel.classList.add('active');
+// ---------- Memorable Passphrase Generator ----------
 
-    const provider = e.target.value;
-    if (UI.gdriveAuthWrap) {
-      UI.gdriveAuthWrap.style.display = (provider === 'gdrive') ? 'block' : 'none';
+if (UI.genPhraseBtn) {
+  UI.genPhraseBtn.addEventListener('click', () => {
+    try {
+      const numWords = 4;
+      const idxs = new Uint16Array(numWords);
+      crypto.getRandomValues(idxs);
+      const n = RECOVERY_WORDS.length;
+      const phrase = Array.from(idxs, v => RECOVERY_WORDS[v % n]).join('-');
+      UI.password.value = phrase;
+      UI.password.dispatchEvent(new Event('input', { bubbles: true }));
+      logStatus('Generated 4-word passphrase', false);
+    } catch (e) {
+      logStatus('Failed to generate passphrase: ' + (e && e.message ? e.message : e), true);
+    }
+  });
+}
+
+// ---------- Top Navigation & Page Views ----------
+
+const navLinks = document.querySelectorAll('#topNavMenu .nav-item');
+const pageSections = document.querySelectorAll('.page-section');
+
+navLinks.forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const targetId = link.getAttribute('data-target');
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      navLinks.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
     }
   });
 });
 
-if (UI.confirmCloudSaveBtn) {
-  UI.confirmCloudSaveBtn.addEventListener('click', async () => {
-    if (!UI._currentArtifact) { closeCloudModal(); return; }
-
-    const selectedProvider = document.querySelector('input[name="cloudProvider"]:checked')?.value || 'system';
-    const note = UI.cloudContextNote ? UI.cloudContextNote.value : '';
-    UI.cloudModalStatus.style.display = 'none';
-    UI.confirmCloudSaveBtn.disabled = true;
-    UI.confirmCloudSaveBtn.textContent = 'Saving…';
-
-    try {
-      if (selectedProvider === 'system') {
-        const res = await window.BlackoutCloud.saveToSystemCloud(
-          UI._currentArtifact.buffer,
-          UI._currentArtifact.filename,
-          UI._currentArtifact.mimeType,
-          note
-        );
-        if (!res.canceled) {
-          logStatus('Artifact saved to cloud storage folder: ' + (res.filename || UI._currentArtifact.filename));
-          logToConsole('Saved ' + UI._currentArtifact.filename + ' to Cloud Vault with context note.', 'data');
-          closeCloudModal();
-        }
-      } else if (selectedProvider === 'gdrive') {
-        const token = window.BlackoutCloud.getCachedGoogleToken() || (UI.gdriveToken ? UI.gdriveToken.value.trim() : '');
-        if (!token) {
-          UI.cloudModalStatus.textContent = 'Please click "Sign In with Google" or enter an OAuth Token below.';
-          UI.cloudModalStatus.style.display = 'block';
-          return;
-        }
-        const res = await window.BlackoutCloud.uploadToGoogleDrive(
-          token,
-          UI._currentArtifact.buffer,
-          UI._currentArtifact.filename,
-          UI._currentArtifact.mimeType,
-          note
-        );
-        logStatus('Uploaded ' + res.name + ' to Google Drive ("' + res.folder + '")');
-        logToConsole('Uploaded to Google Drive Vault ID: ' + res.fileId, 'data');
-        closeCloudModal();
+// Update active nav link on scroll
+if ('IntersectionObserver' in window && pageSections.length > 0) {
+  const navObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navLinks.forEach(l => {
+          if (l.getAttribute('data-target') === id) {
+            l.classList.add('active');
+          } else {
+            l.classList.remove('active');
+          }
+        });
       }
-    } catch (e) {
-      UI.cloudModalStatus.textContent = 'Cloud Save Error: ' + (e && e.message ? e.message : e);
-      UI.cloudModalStatus.style.display = 'block';
-      logToConsole('Cloud Save Error: ' + (e && e.message ? e.message : e), 'error');
-    } finally {
-      UI.confirmCloudSaveBtn.disabled = false;
-      UI.confirmCloudSaveBtn.textContent = 'Save Artifact to Cloud';
+    });
+  }, { threshold: 0.3 });
+
+  pageSections.forEach(s => navObserver.observe(s));
+}
+
+// Quick Lock Button
+const quickLockBtn = document.getElementById('quickLockBtn');
+if (quickLockBtn) {
+  quickLockBtn.addEventListener('click', () => {
+    if (UI.deviceResetBtn) {
+      UI.deviceResetBtn.click();
     }
   });
 }
 
-// Import from Cloud Vault button
-if (UI.importCloudBtn) {
-  UI.importCloudBtn.addEventListener('click', async () => {
-    try {
-      const file = await window.BlackoutCloud.importFromSystemCloud();
-      if (file) {
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        UI.fileIn.files = dt.files;
-        UI.fileIn.dispatchEvent(new Event('change', { bubbles: true }));
-        logStatus('Loaded cloud vault file: ' + file.name);
-      }
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        logStatus('Import Error: ' + (e && e.message ? e.message : e), true);
-      }
-    }
+// Clear Console Button
+const clearConsoleBtn = document.getElementById('clearConsoleBtn');
+if (clearConsoleBtn && UI.lastOut) {
+  clearConsoleBtn.addEventListener('click', () => {
+    UI.lastOut.textContent = 'Console cleared. Awaiting instructions...';
   });
 }
-
-// Google OAuth Sign-In Popup Button
-if (UI.gdriveSignInBtn) {
-  UI.gdriveSignInBtn.addEventListener('click', () => {
-    const customId = UI.gdriveClientId ? UI.gdriveClientId.value : '';
-    UI.gdriveSignInBtn.disabled = true;
-    UI.gdriveSignInBtn.textContent = 'Opening Google Sign-In…';
-
-    window.BlackoutCloud.requestGoogleOAuthToken(
-      customId,
-      (token) => {
-        UI.gdriveSignInBtn.disabled = false;
-        UI.gdriveSignInBtn.textContent = 'Connected to Google Drive ✓';
-        UI.gdriveSignInBtn.style.background = 'rgba(0, 255, 136, 0.2)';
-        if (UI.gdriveStatusText) {
-          UI.gdriveStatusText.textContent = 'Authorized ✓ Ready to save file into your Google Drive Vault.';
-          UI.gdriveStatusText.style.color = '#00ff88';
-        }
-        logToConsole('Google Drive OAuth authorized successfully.', 'data');
-      },
-      (err) => {
-        UI.gdriveSignInBtn.disabled = false;
-        UI.gdriveSignInBtn.textContent = 'Sign In with Google';
-        if (UI.cloudModalStatus) {
-          UI.cloudModalStatus.textContent = err;
-          UI.cloudModalStatus.style.display = 'block';
-        }
-      }
-    );
-  });
-}
-
 

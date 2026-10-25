@@ -1,0 +1,16 @@
+{
+  "name": "Blackout — Client-Side Steganography",
+  "short_name": "Blackout",
+  "description": "Deeply compressed, zero-server steganography tool. Encrypt data and securely hide within PNG images.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#03070a",
+  "theme_color": "#03070a",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2303070a'/%3E%3Cpath d='M20 44V20h12a10 10 0 0 1 0 20h-6' fill='none' stroke='%2300ff88' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
